@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, EmailStr
 from database import get_db
 from schemas.user import UserCreate, UserLogin, Token, UserResponse
 from crud.crud_user import get_user_by_email, create_user
@@ -25,3 +26,19 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
         )
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+@router.post("/forgot-password")
+def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Accepts an email and (in production) would send a reset link.
+    Always returns success to avoid leaking whether an email is registered.
+    """
+    # TODO: integrate an email service (e.g. SendGrid, Mailgun) to send a real reset link
+    user = get_user_by_email(db, email=body.email)
+    if user:
+        # In future: generate a secure token and email it to the user
+        pass
+    return {"message": "If an account with that email exists, a reset link has been sent."}
