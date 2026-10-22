@@ -1,5 +1,8 @@
-from fastapi import FastAPI
+import traceback
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+import models
 from database import engine, Base
 from routers import auth, users, products, carts, orders
 from seed_data import seed_products_if_empty
@@ -22,6 +25,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_trace = traceback.format_exc()
+    print(f"[Server Error] {error_trace}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "traceback": error_trace}
+    )
+
 # Routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
@@ -35,4 +47,10 @@ def root():
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "ok"}
+    return {"status": "ok"}
+
+@app.post("/api/seed")
+def manual_seed():
+    from seed_data import seed_products_if_empty
+    seed_products_if_empty()
+    return {"status": "seeded"}

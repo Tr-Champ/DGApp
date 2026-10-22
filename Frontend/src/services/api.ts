@@ -6,15 +6,7 @@ const getBaseUrl = (): string => {
     if (process.env.EXPO_PUBLIC_API_URL) {
         return process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
     }
-    // In Expo Go on mobile devices, hostUri holds the development PC's IP address
-    const hostUri = Constants.expoConfig?.hostUri;
-    if (hostUri) {
-        const ip = hostUri.split(':')[0];
-        if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
-            return `http://${ip}:8000/api`;
-        }
-    }
-    return 'http://127.0.0.1:8000/api';
+    return 'https://dgapp.onrender.com/api';
 };
 
 const API_BASE_URL = getBaseUrl();
