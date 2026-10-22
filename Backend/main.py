@@ -48,31 +48,4 @@ def root():
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
-
-@app.get("/api/db-schema")
-def db_schema():
-    from sqlalchemy import text
-    from database import SessionLocal
-    db = SessionLocal()
-    try:
-        rows = db.execute(text("""
-            SELECT table_name, column_name, data_type, is_nullable
-            FROM information_schema.columns
-            WHERE table_schema = 'public'
-            ORDER BY table_name, ordinal_position;
-        """)).fetchall()
-        return [{"table": r[0], "column": r[1], "type": r[2], "nullable": r[3]} for r in rows]
-    except Exception as e:
-        return {"error": str(e)}
-    finally:
-        db.close()
-
-@app.post("/api/reset-db")
-def reset_db():
-    from database import engine, Base
-    import models
-    from seed_data import seed_products_if_empty
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    seed_products_if_empty()
-    return {"status": "Database tables recreated and seeded successfully"}
+
