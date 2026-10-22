@@ -1,15 +1,13 @@
-import axios from 'axios';
+import axios, { isAxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Use local backend when running in dev mode, remote when in production
-const LOCAL_API = 'http://localhost:8000/api';
-const REMOTE_API = 'https://dgapp.onrender.com/api';
-
-const API_BASE_URL = __DEV__ ? LOCAL_API : REMOTE_API;
+const API_BASE_URL = (
+    process.env.EXPO_PUBLIC_API_URL || 'https://dgapp.onrender.com/api'
+).replace(/\/+$/, '');
 
 const api = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 10000,
+    timeout: 60000,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -39,3 +37,24 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+    if (!isAxiosError(error)) return fallback;
+
+    const detail: unknown = error.response?.data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+        const messages = detail
+            .map((item: unknown) => {
+                if (typeof item !== 'object' || item === null || !('msg' in item)) return null;
+                return typeof item.msg === 'string' ? item.msg : null;
+            })
+            .filter((message): message is string => message !== null);
+        if (messages.length) return messages.join('; ');
+    }
+    if (!error.response) {
+        return 'Could not connect to the server. Check your internet connection and try again.';
+    }
+
+    return fallback;
+}

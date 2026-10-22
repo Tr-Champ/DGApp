@@ -25,6 +25,19 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Testing authentication and API access
+
+The app uses the deployed API (`https://dgapp.onrender.com/api`) in development and production by default, so you do not need to run the backend locally. Your phone or emulator must have internet access. The first request can take longer if the hosted API is waking up.
+
+To use a different API, set `EXPO_PUBLIC_API_URL` before starting Expo. For example, in PowerShell:
+
+```powershell
+$env:EXPO_PUBLIC_API_URL = "https://your-api.example.com/api"
+npx expo start
+```
+
+Use a publicly reachable HTTPS URL for a packaged app. `EXPO_PUBLIC_` values are embedded in the client app and must not contain secrets. Expo's development server is still needed to load the app during local testing; no local backend server is needed.
+
 ## Get a fresh project
 
 When you're ready, run:

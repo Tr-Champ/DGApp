@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Text, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import { Colors } from '../../constants/Colors';
+import { getApiErrorMessage } from '../../services/api';
 
 export default function RegisterScreen() {
     const [email, setEmail] = useState('');
@@ -22,8 +23,8 @@ export default function RegisterScreen() {
             setLoading(true);
             await register(email, password);
             router.replace('/(tabs)');
-        } catch (e: any) {
-            Alert.alert('Registration Failed', e.response?.data?.detail || 'Could not register');
+        } catch (error: unknown) {
+            Alert.alert('Registration Failed', getApiErrorMessage(error, 'Could not register. Please try again.'));
         } finally {
             setLoading(false);
         }

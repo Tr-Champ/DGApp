@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Text, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import { Colors } from '../../constants/Colors';
+import { getApiErrorMessage } from '../../services/api';
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
@@ -19,8 +20,8 @@ export default function LoginScreen() {
             setLoading(true);
             await login(email, password);
             router.replace('/(tabs)');
-        } catch (e: any) {
-            Alert.alert('Login Failed', e.response?.data?.detail || 'Invalid credentials');
+        } catch (error: unknown) {
+            Alert.alert('Login Failed', getApiErrorMessage(error, 'Invalid email or password. Please try again.'));
         } finally {
             setLoading(false);
         }
@@ -43,7 +44,7 @@ export default function LoginScreen() {
                 <Button title="Login" onPress={handleLogin} loading={loading} />
 
                 <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-                    <Text style={styles.link}>Don't have an account? <Text style={styles.linkBold}>Register</Text></Text>
+                    <Text style={styles.link}>Don&apos;t have an account? <Text style={styles.linkBold}>Register</Text></Text>
                 </TouchableOpacity>
             </ScrollView>
         </KeyboardAvoidingView>
