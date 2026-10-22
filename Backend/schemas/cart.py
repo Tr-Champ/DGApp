@@ -1,21 +1,15 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
+from typing import List, Any
 
-class UserCreate(BaseModel):
-    email: EmailStr
-    password: str
+class CartUpdate(BaseModel):
+    items: List[Any]
+    total_price: float
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class UserResponse(BaseModel):
+class CartResponse(BaseModel):
     id: str
-    email: str
-    is_admin: bool
+    user_id: str
+    items: List[Any]
+    total_price: float
 
     class Config:
-        orm_mode = True
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
+        from_attributes = True
