@@ -1,5 +1,7 @@
+import uuid
 from sqlalchemy.orm import Session
 from models.product import Product
+from schemas.product import ProductCreate
 
 def get_products(db: Session, category: str = None, search: str = None):
     query = db.query(Product)
@@ -10,4 +12,20 @@ def get_products(db: Session, category: str = None, search: str = None):
     return query.all()
 
 def get_product_by_id(db: Session, product_id: str):
-    return db.query(Product).filter(Product.id == product_id).first()
+    return db.query(Product).filter(Product.id == str(product_id)).first()
+
+def create_product(db: Session, product: ProductCreate):
+    prod_id = product.id if product.id else str(uuid.uuid4())
+    db_product = Product(
+        id=prod_id,
+        name=product.name,
+        category=product.category,
+        price=product.price,
+        quantity=product.quantity,
+        info=product.info or {},
+        images=product.images or []
+    )
+    db.add(db_product)
+    db.commit()
+    db.refresh(db_product)
+    return db_product

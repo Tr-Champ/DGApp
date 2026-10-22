@@ -13,7 +13,11 @@ export default function CartScreen() {
     return (
         <View style={styles.container}>
             {cartItems.length === 0 ? (
-                <Text style={styles.empty}>Your cart is empty.</Text>
+                <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyTitle}>Your cart is empty</Text>
+                    <Text style={styles.emptySubtitle}>Explore our catalog and find items you love.</Text>
+                    <Button title="Explore Products" onPress={() => router.push('/(tabs)')} style={{ marginTop: 20, width: 200 }} />
+                </View>
             ) : (
                 <>
                     <FlatList data={cartItems} renderItem={({ item }) => <CartItemRow item={item} />} keyExtractor={(item) => item.product_id.toString()} />
@@ -29,7 +33,9 @@ export default function CartScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, padding: 10, backgroundColor: Colors.background },
-    empty: { textAlign: 'center', marginTop: 50, fontSize: 16, color: Colors.textMuted },
+    emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+    emptyTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, textAlign: 'center' },
+    emptySubtitle: { fontSize: 14, color: Colors.textMuted, textAlign: 'center', marginTop: 8 },
     footer: { padding: 15, backgroundColor: '#fff', borderTopWidth: 1, borderColor: Colors.border },
     total: { fontSize: 18, fontWeight: 'bold', marginBottom: 10, color: Colors.text }
 });

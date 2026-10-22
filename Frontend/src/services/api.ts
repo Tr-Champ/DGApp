@@ -1,9 +1,26 @@
 import axios, { isAxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-const API_BASE_URL = (
-    process.env.EXPO_PUBLIC_API_URL || 'https://dgapp.onrender.com/api'
-).replace(/\/+$/, '');
+const getBaseUrl = (): string => {
+    if (process.env.EXPO_PUBLIC_API_URL) {
+        return process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
+    }
+    // In Expo Go on mobile devices, hostUri holds the development PC's IP address
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+        const ip = hostUri.split(':')[0];
+        if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+            return `http://${ip}:8000/api`;
+        }
+    }
+    return 'http://127.0.0.1:8000/api';
+};
+
+const API_BASE_URL = getBaseUrl();
+if (__DEV__) {
+    console.log('[API] Initialized Base URL:', API_BASE_URL);
+}
 
 const api = axios.create({
     baseURL: API_BASE_URL,

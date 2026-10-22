@@ -1,13 +1,19 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
-class ProductResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str
+class ProductBase(BaseModel):
     name: str
     category: str
     price: float
-    quantity: int
-    info: Dict[str, Any] = {}
-    images: List[str] = []
+    quantity: int = 0
+    info: Optional[Dict[str, Any]] = {}
+    images: Optional[List[str]] = []
+
+class ProductCreate(ProductBase):
+    id: Optional[str] = None
+
+class ProductResponse(ProductBase):
+    model_config = {"from_attributes": True}
+
+    id: str
+

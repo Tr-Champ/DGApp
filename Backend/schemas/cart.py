@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Any
 
 class CartUpdate(BaseModel):
@@ -6,10 +6,9 @@ class CartUpdate(BaseModel):
     total_price: float
 
 class CartResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
     id: str
     user_id: str
     items: List[Any]
-    total_price: float
-
-    class Config:
-        from_attributes = True
+    total_price: float

@@ -2,9 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from routers import auth, users, products, carts, orders
+from seed_data import seed_products_if_empty
 
 # Automatically create tables for local development / deployment
 Base.metadata.create_all(bind=engine)
+seed_products_if_empty()
 
 app = FastAPI(
     title="D&G E-Commerce API",
@@ -30,3 +32,7 @@ app.include_router(orders.router, prefix="/api/orders", tags=["Orders"])
 @app.get("/")
 def root():
     return {"message": "D&G E-Commerce Backend is up and running successfully!"}
+
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok"}
