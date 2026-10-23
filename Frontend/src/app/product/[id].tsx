@@ -20,6 +20,8 @@ import api from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import Button from '../../components/Button';
 import { Colors } from '../../constants/Colors';
+import { useLanguage } from '../../context/LanguageContext';
+import { formatRWF } from '../../constants/i18n';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -27,6 +29,7 @@ export default function ProductDetailScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const { t, lang } = useLanguage();
     const [product, setProduct] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -135,15 +138,18 @@ export default function ProductDetailScreen() {
                 {/* Product Content Details */}
                 <View style={styles.content}>
                     <Text style={styles.name}>{product.name}</Text>
-                    <Text style={styles.price}>${parseFloat(product.price || 0).toFixed(2)}</Text>
+                    <Text style={styles.price}>{formatRWF(parseFloat(product.price || 0))}</Text>
 
                     <View style={styles.metaRow}>
                         <View style={styles.metaBadge}>
                             <Text style={styles.metaBadgeText}>{product.category || 'General'}</Text>
                         </View>
-                        <Text style={styles.stockText}>
-                            In Stock: <Text style={{ fontWeight: '700', color: Colors.text }}>{product.quantity ?? 0}</Text>
+                        <Text style={[styles.stockText, (product.quantity ?? 0) <= 0 && { color: Colors.error }]}>
+                            {(product.quantity ?? 0) <= 0
+                                ? (lang === 'rw' ? 'Nta bihari' : lang === 'fr' ? 'Rupture de stock' : 'Out of Stock')
+                                : `#Items: ${product.quantity} (${lang === 'rw' ? 'ibicuruzwa bihari' : lang === 'fr' ? 'exemplaires' : 'copies'})`}
                         </Text>
+
                     </View>
 
                     {product.info?.description ? (
@@ -154,12 +160,15 @@ export default function ProductDetailScreen() {
                     ) : null}
 
                     <Button
-                        title="Add to Cart"
+                        title={t.addToCart}
                         onPress={() => {
+                            if ((product.quantity ?? 0) <= 0) {
+                                return Alert.alert(t.outOfStock, lang === 'rw' ? 'Iyi nyongeramazina nta bihari.' : lang === 'fr' ? 'Ce produit est en rupture de stock.' : 'This product is currently out of stock.');
+                            }
                             addToCart(product);
-                            Alert.alert('Success', `${product.name} added to cart!`);
+                            Alert.alert(t.success, `${product.name} ${lang === 'rw' ? 'yongereye mu igare' : lang === 'fr' ? 'ajouté au panier' : 'added to cart'}!`);
                         }}
-                        style={styles.cartBtn}
+                        style={[styles.cartBtn, (product.quantity ?? 0) <= 0 && { backgroundColor: Colors.textMuted }]}
                     />
                 </View>
             </ScrollView>

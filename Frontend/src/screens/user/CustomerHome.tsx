@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
     View,
     FlatList,
@@ -15,16 +15,25 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import ProductCard from '../../components/ProductCard';
 import { Colors } from '../../constants/Colors';
+import { useLanguage } from '../../context/LanguageContext';
+import { formatRWF } from '../../constants/i18n';
 
 const CATEGORIES = ['All', 'Clothes', 'Shoes', 'Bags', 'Household', 'Jewelry', 'Cosmetics'];
+const POLL_INTERVAL_MS = 5000; // 5-second real-time sync for blink updates
+
+// In-memory cache for instant zero-spinner loading on tab navigation
+let cachedProducts: any[] = [];
+let cachedPendingOrders: any[] = [];
 
 export default function CustomerHome() {
     const router = useRouter();
-    const [products, setProducts] = useState<any[]>([]);
-    const [pendingOrders, setPendingOrders] = useState<any[]>([]);
+    const { t, lang } = useLanguage();
+    const [products, setProducts] = useState<any[]>(cachedProducts);
+    const [pendingOrders, setPendingOrders] = useState<any[]>(cachedPendingOrders);
     const [selectedCategory, setSelectedCategory] = useState('All');
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(cachedProducts.length === 0);
     const [refreshing, setRefreshing] = useState(false);
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const formatOrderRef = (id: string) => {
         if (!id) return '#ORD-001';
@@ -33,17 +42,22 @@ export default function CustomerHome() {
         return `#ORD-${id.replace(/-/g, '').slice(0, 5).toUpperCase()}`;
     };
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (silent = false) => {
         try {
+            if (!silent && cachedProducts.length === 0) setLoading(true);
             const [productsRes, ordersRes] = await Promise.all([
                 api.get('/products/'),
                 api.get('/orders/').catch(() => ({ data: [] })),
             ]);
 
-            setProducts(productsRes.data || []);
+            const newProducts = productsRes.data || [];
+            cachedProducts = newProducts;
+            setProducts(newProducts);
 
             const allOrders: any[] = ordersRes.data || [];
+            // Only show banner for orders that are NOT yet delivered
             const pending = allOrders.filter((o) => !o.delivered);
+            cachedPendingOrders = pending;
             setPendingOrders(pending);
         } catch (e) {
             console.error('Home data fetch error', e);
@@ -54,30 +68,49 @@ export default function CustomerHome() {
     }, []);
 
     useEffect(() => {
-        fetchData();
+        // Fetch silently if we already have cached data to show immediately
+        fetchData(cachedProducts.length > 0);
+
+        // Real-time sync: poll every 5 seconds for instant delivery updates
+        pollRef.current = setInterval(() => {
+            fetchData(true);
+        }, POLL_INTERVAL_MS);
+
+        return () => {
+            if (pollRef.current) clearInterval(pollRef.current);
+        };
     }, [fetchData]);
 
     const onRefresh = () => {
         setRefreshing(true);
-        fetchData();
+        fetchData(true);
     };
 
     const handleConfirmDeliveryFromBanner = (order: any) => {
         const orderRef = formatOrderRef(order.id);
         Alert.alert(
-            'Confirm Delivery Receipt',
-            `Have you received your package for ${orderRef}?\nConfirming marks the delivery handshake as complete.`,
+            t.confirmDelivery,
+            lang === 'rw'
+                ? `Wabonye ibicuruzwa bya ${orderRef}? Emeza uzarangize igabana ry'itangwa.`
+                : lang === 'fr'
+                ? `Avez-vous reçu votre colis pour ${orderRef}? Confirmer complète le processus de livraison.`
+                : `Have you received your package for ${orderRef}?\nConfirming marks the delivery handshake as complete.`,
             [
-                { text: 'View All Orders', onPress: () => router.push('/(tabs)/tab4') },
+                { text: lang === 'rw' ? 'Reba Amateka' : lang === 'fr' ? 'Voir les commandes' : 'View All Orders', onPress: () => router.push('/(tabs)/tab4') },
                 {
-                    text: 'Yes, Delivered!',
+                    text: lang === 'rw' ? 'Yego, Byatanzwe!' : lang === 'fr' ? 'Oui, Reçu!' : 'Yes, Delivered!',
                     onPress: async () => {
+                        // Immediately dismiss banner in the blink of an eye
+                        setPendingOrders((prev) => prev.filter((o) => o.id !== order.id));
+                        cachedPendingOrders = cachedPendingOrders.filter((o) => o.id !== order.id);
+
                         try {
                             await api.patch(`/orders/${order.id}/deliver`);
-                            Alert.alert('Success', `Order ${orderRef} confirmed delivered!`);
-                            fetchData();
+                            Alert.alert(t.success, `${lang === 'rw' ? 'Itangwa rya' : lang === 'fr' ? 'Commande' : 'Order'} ${orderRef} ${lang === 'rw' ? 'ryemejwe!' : lang === 'fr' ? 'confirmée!' : 'confirmed!'}`);
+                            fetchData(true);
                         } catch {
-                            router.push('/(tabs)/tab4');
+                            // If failed, restore orders
+                            fetchData(true);
                         }
                     },
                 },
@@ -86,6 +119,7 @@ export default function CustomerHome() {
     };
 
     if (loading) return <ActivityIndicator style={{ flex: 1 }} color={Colors.primary} size="large" />;
+
 
     const filteredProducts =
         selectedCategory === 'All'
@@ -107,9 +141,15 @@ export default function CustomerHome() {
                         <Ionicons name="notifications" size={18} color="#FFFFFF" />
                     </View>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.bannerTitle}>Delivery In Transit 🚚</Text>
+                        <Text style={styles.bannerTitle}>
+                            {lang === 'rw' ? 'Ibicuruzwa biri mu nzira 🚚' : lang === 'fr' ? 'Livraison en cours 🚚' : 'Delivery In Transit 🚚'}
+                        </Text>
                         <Text style={styles.bannerSub} numberOfLines={1}>
-                            Order {formatOrderRef(pendingOrders[0].id)} is arriving! Tap to confirm receipt.
+                            {lang === 'rw'
+                                ? `Iyangu ${formatOrderRef(pendingOrders[0].id)} iri mu nzira! Kanda kugira ngo wemeze.`
+                                : lang === 'fr'
+                                ? `Commande ${formatOrderRef(pendingOrders[0].id)} arrive! Appuyez pour confirmer.`
+                                : `Order ${formatOrderRef(pendingOrders[0].id)} is arriving! Tap to confirm receipt.`}
                         </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
@@ -160,8 +200,12 @@ export default function CustomerHome() {
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Ionicons name="basket-outline" size={48} color={Colors.border} style={{ marginBottom: 10 }} />
-                        <Text style={styles.emptyText}>No products found in "{selectedCategory}".</Text>
-                        <Text style={styles.emptySubtext}>Select another category or pull down to refresh.</Text>
+                        <Text style={styles.emptyText}>
+                            {lang === 'rw' ? `Nta bicuruzwa muri "${selectedCategory}".` : lang === 'fr' ? `Aucun produit dans "${selectedCategory}".` : `No products found in "${selectedCategory}".`}
+                        </Text>
+                        <Text style={styles.emptySubtext}>
+                            {lang === 'rw' ? 'Hitamo icyiciro cindi cyangwa gukurura hasi.' : lang === 'fr' ? 'Choisissez une autre catégorie ou faites glisser vers le bas.' : 'Select another category or pull down to refresh.'}
+                        </Text>
                     </View>
                 }
             />

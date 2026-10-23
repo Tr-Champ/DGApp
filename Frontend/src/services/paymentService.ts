@@ -48,9 +48,10 @@ export async function processPayment(request: PaymentRequest): Promise<PaymentRe
     return {
         success: true,
         transactionId: `TXN-${Date.now().toString(36).toUpperCase()}`,
-        message: `Payment of $${request.amount.toFixed(2)} via ${request.method.replace('_', ' ')} processed successfully.`,
+        message: `Payment of RWF ${Math.round(request.amount).toLocaleString('en-US')} via ${request.method.replace('_', ' ')} processed successfully.`,
         method: request.method,
     };
+
 }
 
 /**

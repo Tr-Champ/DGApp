@@ -5,6 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import { Colors } from '../../constants/Colors';
+import { formatRWF } from '../../constants/i18n';
 
 interface Order {
     id: string;
@@ -100,7 +101,7 @@ export default function AdminReports() {
             <View style={styles.revenueBanner}>
                 <Ionicons name="cash-outline" size={36} color="#fff" style={{ marginBottom: 6 }} />
                 <Text style={styles.revenueLabel}>Realized Revenue (Delivered Orders)</Text>
-                <Text style={styles.revenueValue}>${totalRevenue.toFixed(2)}</Text>
+                <Text style={styles.revenueValue}>{formatRWF(totalRevenue)}</Text>
             </View>
 
             {/* Key metrics */}
@@ -126,7 +127,7 @@ export default function AdminReports() {
                     <Text style={styles.metricLabel}>Fulfillment</Text>
                 </View>
                 <View style={styles.metricBox}>
-                    <Text style={styles.metricValue}>${avgOrderValue}</Text>
+                    <Text style={styles.metricValue}>{formatRWF(parseFloat(avgOrderValue))}</Text>
                     <Text style={styles.metricLabel}>Avg Order</Text>
                 </View>
                 <View style={styles.metricBox}>
@@ -172,7 +173,7 @@ export default function AdminReports() {
                                 </Text>
                             </View>
                             <View style={styles.txRight}>
-                                <Text style={styles.txAmount}>${parseFloat(ord.total_price as any || 0).toFixed(2)}</Text>
+                                <Text style={styles.txAmount}>{formatRWF(parseFloat(ord.total_price as any || 0))}</Text>
                                 <Text style={[styles.txStatus, { color: ord.delivered ? Colors.success : Colors.secondary }]}>
                                     {ord.delivered ? 'Completed' : 'Pending'}
                                 </Text>
@@ -181,6 +182,7 @@ export default function AdminReports() {
                     ))
                 )}
             </View>
+
 
             <View style={{ height: 30 }} />
         </ScrollView>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
     View, Text, FlatList, StyleSheet, ActivityIndicator,
     RefreshControl, TouchableOpacity, Alert, Modal, ScrollView, TextInput
@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../services/api';
 import { Colors } from '../../constants/Colors';
+import { formatRWF } from '../../constants/i18n';
 
 interface CustomerInfo {
     name?: string;
@@ -31,6 +32,8 @@ interface Order {
 
 type FilterTab = 'all' | 'pending' | 'delivered';
 
+const POLL_INTERVAL_MS = 6000;
+
 export default function AdminConfirmOrders() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
@@ -38,6 +41,7 @@ export default function AdminConfirmOrders() {
     const [confirmingId, setConfirmingId] = useState<string | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Customer details modal state
     const [selectedCustomerOrder, setSelectedCustomerOrder] = useState<Order | null>(null);
@@ -62,7 +66,16 @@ export default function AdminConfirmOrders() {
         }
     }, []);
 
-    useEffect(() => { fetchOrders(); }, [fetchOrders]);
+    useEffect(() => {
+        fetchOrders();
+        // Real-time sync: poll every 15 seconds
+        pollRef.current = setInterval(() => {
+            fetchOrders();
+        }, POLL_INTERVAL_MS);
+        return () => {
+            if (pollRef.current) clearInterval(pollRef.current);
+        };
+    }, [fetchOrders]);
 
     const onRefresh = () => { setRefreshing(true); fetchOrders(); };
 
@@ -108,15 +121,19 @@ export default function AdminConfirmOrders() {
                     onPress: async () => {
                         try {
                             setConfirmingId(order.id);
+                            // Optimistically mark as delivered in a blink
+                            setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, delivered: true } : o)));
                             await api.patch(`/orders/${order.id}/deliver`);
                             Alert.alert('Delivery Confirmed', `Order ${formatOrderRef(order.id)} successfully delivered!`);
                             fetchOrders();
                         } catch (e: any) {
                             Alert.alert('Error', e.response?.data?.detail || 'Failed to update delivery status.');
+                            fetchOrders();
                         } finally {
                             setConfirmingId(null);
                         }
                     },
+
                 },
             ]
         );
@@ -265,7 +282,7 @@ export default function AdminConfirmOrders() {
                                 <Text style={styles.itemCount}>
                                     📦 {productsList.length} product{productsList.length !== 1 ? 's' : ''}
                                 </Text>
-                                <Text style={styles.priceText}>${priceNum.toFixed(2)}</Text>
+                                <Text style={styles.priceText}>{formatRWF(priceNum)}</Text>
                             </View>
 
                             {/* Customer Email preview */}
@@ -279,8 +296,9 @@ export default function AdminConfirmOrders() {
                                 <View style={styles.productsBox}>
                                     {productsList.map((prod: any, idx: number) => (
                                         <Text key={idx} style={styles.productLine} numberOfLines={1}>
-                                            • {prod.name || 'Item'} × {prod.quantity || 1} (${parseFloat(prod.price || 0).toFixed(2)})
+                                            • {prod.name || 'Item'} × {prod.quantity || 1} ({formatRWF(parseFloat(prod.price || 0))})
                                         </Text>
+
                                     ))}
                                 </View>
                             )}
@@ -391,7 +409,7 @@ export default function AdminConfirmOrders() {
                                         {activeProducts.map((p: any, i: number) => (
                                             <View key={i} style={styles.modalProdRow}>
                                                 <Text style={styles.modalProdName}>{p.name || 'Product'} × {p.quantity || 1}</Text>
-                                                <Text style={styles.modalProdPrice}>${parseFloat(p.subtotal || p.price || 0).toFixed(2)}</Text>
+                                                <Text style={styles.modalProdPrice}>{formatRWF(parseFloat(p.subtotal || p.price || 0))}</Text>
                                             </View>
                                         ))}
                                     </View>

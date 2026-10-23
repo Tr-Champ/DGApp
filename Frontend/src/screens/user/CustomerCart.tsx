@@ -5,18 +5,23 @@ import { useCart } from '../../context/CartContext';
 import CartItemRow from '../../components/CartItemRow';
 import Button from '../../components/Button';
 import { Colors } from '../../constants/Colors';
+import { useLanguage } from '../../context/LanguageContext';
+import { formatRWF } from '../../constants/i18n';
 
 export default function CustomerCart() {
     const { cartItems, totalPrice } = useCart();
     const router = useRouter();
+    const { t } = useLanguage();
 
     return (
         <View style={styles.container}>
             {cartItems.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyTitle}>Your cart is empty</Text>
-                    <Text style={styles.emptySubtitle}>Explore our catalog and find items you love.</Text>
-                    <Button title="Explore Products" onPress={() => router.push('/(tabs)/tab1')} style={{ marginTop: 20, width: 200 }} />
+                    <Text style={styles.emptyTitle}>{t.emptyCart}</Text>
+                    <Text style={styles.emptySubtitle}>
+                        {t.exploreProducts}
+                    </Text>
+                    <Button title={t.exploreProducts} onPress={() => router.push('/(tabs)/tab1')} style={{ marginTop: 20, width: 200 }} />
                 </View>
             ) : (
                 <>
@@ -27,8 +32,8 @@ export default function CustomerCart() {
                         contentContainerStyle={{ paddingBottom: 20 }}
                     />
                     <View style={styles.footer}>
-                        <Text style={styles.total}>Total: ${totalPrice.toFixed(2)}</Text>
-                        <Button title="Proceed to Checkout" onPress={() => router.push('/checkout')} />
+                        <Text style={styles.total}>{t.total}: {formatRWF(totalPrice)}</Text>
+                        <Button title={t.checkout} onPress={() => router.push('/checkout')} />
                     </View>
                 </>
             )}

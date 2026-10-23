@@ -117,27 +117,9 @@ export default function TabLayout() {
                     ),
                 }}
             />
-            {/* Hidden legacy tab routes so existing deep links redirect cleanly without duplication */}
+            {/* Root index redirect so /(tabs) routes smoothly to tab1 */}
             <Tabs.Screen
                 name="index"
-                options={{
-                    href: null,
-                }}
-            />
-            <Tabs.Screen
-                name="search"
-                options={{
-                    href: null,
-                }}
-            />
-            <Tabs.Screen
-                name="cart"
-                options={{
-                    href: null,
-                }}
-            />
-            <Tabs.Screen
-                name="orders"
                 options={{
                     href: null,
                 }}

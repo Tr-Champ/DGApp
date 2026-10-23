@@ -12,6 +12,14 @@ class ProductBase(BaseModel):
 class ProductCreate(ProductBase):
     id: Optional[str] = None
 
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    price: Optional[float] = None
+    quantity: Optional[int] = None
+    info: Optional[Dict[str, Any]] = None
+    images: Optional[List[str]] = None
+
 class ProductResponse(ProductBase):
     model_config = {"from_attributes": True}
 

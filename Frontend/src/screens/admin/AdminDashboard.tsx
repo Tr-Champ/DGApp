@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
+import { formatRWF } from '../../constants/i18n';
 
 interface OrderItem {
     id: string;
@@ -24,21 +25,26 @@ interface Stats {
     revenue: number;
 }
 
+// In-memory cache for instant zero-spinner loading on tab navigation
+let cachedStats: Stats | null = null;
+let cachedRecentOrders: OrderItem[] = [];
+
 export default function AdminDashboard() {
     const { user } = useAuth();
-    const [stats, setStats] = useState<Stats>({
+    const [stats, setStats] = useState<Stats>(cachedStats || {
         totalProducts: 0,
         totalOrders: 0,
         pendingOrders: 0,
         deliveredOrders: 0,
         revenue: 0,
     });
-    const [recentOrders, setRecentOrders] = useState<OrderItem[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [recentOrders, setRecentOrders] = useState<OrderItem[]>(cachedRecentOrders);
+    const [loading, setLoading] = useState(!cachedStats);
     const [refreshing, setRefreshing] = useState(false);
 
-    const fetchStats = useCallback(async () => {
+    const fetchStats = useCallback(async (silent = false) => {
         try {
+            if (!silent && !cachedStats) setLoading(true);
             let products: any[] = [];
             try {
                 const pRes = await api.get('/products/');
@@ -66,14 +72,18 @@ export default function AdminDashboard() {
                 .filter((o) => o.delivered)
                 .reduce((sum: number, o: any) => sum + (parseFloat(o.total_price) || 0), 0);
 
-            setStats({
+            const newStats = {
                 totalProducts: products.length,
                 totalOrders: orders.length,
                 pendingOrders: pending,
                 deliveredOrders: delivered,
                 revenue,
-            });
+            };
 
+            cachedStats = newStats;
+            cachedRecentOrders = orders.slice(0, 5);
+
+            setStats(newStats);
             setRecentOrders(orders.slice(0, 5));
         } catch (e) {
             console.error('Dashboard fetch error', e);
@@ -83,13 +93,16 @@ export default function AdminDashboard() {
         }
     }, []);
 
-    useEffect(() => { fetchStats(); }, [fetchStats]);
+    useEffect(() => {
+        fetchStats(!!cachedStats);
+    }, [fetchStats]);
 
-    const onRefresh = () => { setRefreshing(true); fetchStats(); };
+    const onRefresh = () => { setRefreshing(true); fetchStats(true); };
 
     if (loading) {
         return <ActivityIndicator style={{ flex: 1 }} color={Colors.primary} size="large" />;
     }
+
 
     const StatCard = ({ icon, label, value, color }: { icon: string; label: string; value: string | number; color: string }) => (
         <View style={[styles.statCard, { borderLeftColor: color }]}>
@@ -119,7 +132,7 @@ export default function AdminDashboard() {
                 <StatCard icon="receipt-outline" label="Total Orders" value={stats.totalOrders} color="#1E40AF" />
                 <StatCard icon="time-outline" label="Pending Orders" value={stats.pendingOrders} color={Colors.secondary} />
                 <StatCard icon="checkmark-circle-outline" label="Delivered" value={stats.deliveredOrders} color={Colors.success} />
-                <StatCard icon="cash-outline" label="Revenue" value={`$${stats.revenue.toFixed(2)}`} color="#7C3AED" />
+                <StatCard icon="cash-outline" label="Revenue" value={formatRWF(stats.revenue)} color="#7C3AED" />
             </View>
 
             {/* Recent Order Notifications */}
@@ -137,7 +150,7 @@ export default function AdminDashboard() {
                                 </View>
                             </View>
                             <Text style={styles.orderNotifDetails}>
-                                Total: ${parseFloat(ord.total_price as any || 0).toFixed(2)} · {Array.isArray(ord.items) ? ord.items.length : 0} items
+                                Total: {formatRWF(parseFloat(ord.total_price as any || 0))} · {Array.isArray(ord.items) ? ord.items.filter((i: any) => !i?.is_customer_info).length : 0} items
                             </Text>
                         </View>
                     ))

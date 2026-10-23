@@ -1,21 +1,33 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
+import { useLanguage } from '../../context/LanguageContext';
+import { formatRWF } from '../../constants/i18n';
+
+const POLL_INTERVAL_MS = 5000; // 5-second polling for real-time delivery sync
+
+// In-memory cache for instant zero-spinner loading on tab navigation
+let cachedOrders: any[] = [];
 
 export default function CustomerOrders() {
     const { user } = useAuth();
-    const [orders, setOrders] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { t, lang } = useLanguage();
+    const [orders, setOrders] = useState<any[]>(cachedOrders);
+    const [loading, setLoading] = useState(cachedOrders.length === 0);
     const [refreshing, setRefreshing] = useState(false);
     const [confirmingId, setConfirmingId] = useState<string | null>(null);
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const fetchOrders = useCallback(async () => {
+    const fetchOrders = useCallback(async (silent = false) => {
         try {
+            if (!silent && cachedOrders.length === 0) setLoading(true);
             const res = await api.get('/orders/');
-            setOrders(res.data || []);
+            const newOrders = res.data || [];
+            cachedOrders = newOrders;
+            setOrders(newOrders);
         } catch (e) {
             console.error('Failed to load customer orders', e);
         } finally {
@@ -24,9 +36,20 @@ export default function CustomerOrders() {
         }
     }, []);
 
-    useEffect(() => { fetchOrders(); }, [fetchOrders]);
+    useEffect(() => {
+        fetchOrders(cachedOrders.length > 0);
 
-    const onRefresh = () => { setRefreshing(true); fetchOrders(); };
+        // Real-time sync every 5 seconds — both admin confirm and customer confirm update in blink
+        pollRef.current = setInterval(() => {
+            fetchOrders(true);
+        }, POLL_INTERVAL_MS);
+
+        return () => {
+            if (pollRef.current) clearInterval(pollRef.current);
+        };
+    }, [fetchOrders]);
+
+    const onRefresh = () => { setRefreshing(true); fetchOrders(true); };
 
     // Clean human-friendly reference
     const formatOrderRef = (id: string) => {
@@ -51,21 +74,39 @@ export default function CustomerOrders() {
     const handleCustomerConfirmReceipt = async (order: any) => {
         const refName = formatOrderRef(order.id);
         Alert.alert(
-            'Confirm Product Delivery',
-            `Have you received your items for ${refName}?\nConfirming completes the delivery handshake for ${user?.email || 'your account'}.`,
+            t.confirmReceipt,
+            lang === 'rw'
+                ? `Wabonye ibicuruzwa bya ${refName}?\nEmeza uzarangize igabana.`
+                : lang === 'fr'
+                ? `Avez-vous reçu votre commande ${refName}?\nConfirmer complète le processus de livraison.`
+                : `Have you received your items for ${refName}?\nConfirming completes the delivery handshake for ${user?.email || 'your account'}.`,
             [
-                { text: 'Not Yet', style: 'cancel' },
                 {
-                    text: 'Yes, Package Received',
+                    text: lang === 'rw' ? 'Ntaraho' : lang === 'fr' ? 'Pas encore' : 'Not Yet',
+                    style: 'cancel',
+                },
+                {
+                    text: lang === 'rw' ? 'Yego, Byabonwe' : lang === 'fr' ? 'Oui, reçu' : 'Yes, Package Received',
                     onPress: async () => {
                         try {
                             setConfirmingId(order.id);
+                            // Optimistically mark as delivered in a blink
+                            setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, delivered: true } : o)));
+                            cachedOrders = cachedOrders.map((o) => (o.id === order.id ? { ...o, delivered: true } : o));
+
                             await api.patch(`/orders/${order.id}/deliver`);
-                            Alert.alert('🎉 Delivery Confirmed', `Order ${refName} has been marked as delivered. Enjoy your products!`);
-                            fetchOrders();
+                            Alert.alert(
+                                '🎉 ' + t.success,
+                                lang === 'rw'
+                                    ? `Itangwa rya ${refName} ryemejwe. Murakoze!`
+                                    : lang === 'fr'
+                                    ? `Commande ${refName} confirmée. Merci!`
+                                    : `Order ${refName} has been marked as delivered. Enjoy your products!`
+                            );
+                            fetchOrders(true);
                         } catch (e: any) {
-                            Alert.alert('Notice', e.response?.data?.detail || 'Order status updated.');
-                            fetchOrders();
+                            Alert.alert(t.success, e.response?.data?.detail || 'Order status updated.');
+                            fetchOrders(true);
                         } finally {
                             setConfirmingId(null);
                         }
@@ -74,6 +115,7 @@ export default function CustomerOrders() {
             ]
         );
     };
+
 
     if (loading) return <ActivityIndicator style={{ flex: 1 }} color={Colors.primary} size="large" />;
 
@@ -89,8 +131,14 @@ export default function CustomerOrders() {
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Ionicons name="bag-handle-outline" size={44} color={Colors.border} style={{ marginBottom: 10 }} />
-                        <Text style={styles.emptyText}>No orders placed yet.</Text>
-                        <Text style={styles.emptySubtext}>When you place an order, it will appear here.</Text>
+                        <Text style={styles.emptyText}>{t.noOrders}</Text>
+                        <Text style={styles.emptySubtext}>
+                            {lang === 'rw'
+                                ? 'Iyo uguriye, amateka azagaragara hano.'
+                                : lang === 'fr'
+                                ? 'Lorsque vous passez une commande, elle apparaîtra ici.'
+                                : 'When you place an order, it will appear here.'}
+                        </Text>
                     </View>
                 }
                 renderItem={({ item }: any) => {
@@ -105,12 +153,14 @@ export default function CustomerOrders() {
                                 <Text style={styles.id}>{formatOrderRef(item.id)}</Text>
                                 <View style={[styles.statusBadge, { backgroundColor: item.delivered ? Colors.success : Colors.secondary }]}>
                                     <Text style={styles.statusBadgeText}>
-                                        {item.delivered ? '✓ Delivered' : '⏳ In Transit'}
+                                        {item.delivered
+                                            ? (lang === 'rw' ? '✓ Byatanzwe' : lang === 'fr' ? '✓ Livré' : '✓ Delivered')
+                                            : (lang === 'rw' ? '⏳ Iri mu nzira' : lang === 'fr' ? '⏳ En transit' : '⏳ In Transit')}
                                     </Text>
                                 </View>
                             </View>
 
-                            <Text style={styles.priceText}>${priceNum.toFixed(2)}</Text>
+                            <Text style={styles.priceText}>{formatRWF(priceNum)}</Text>
 
                             {/* Products breakdown */}
                             {productsList.length > 0 && (
@@ -125,11 +175,11 @@ export default function CustomerOrders() {
 
                             {custMeta && (
                                 <Text style={styles.addressLine}>
-                                    📍 Deliver to: {custMeta.district || 'Kigali'} ({custMeta.phone || ''})
+                                    📍 {lang === 'rw' ? 'Kohereza kuri:' : lang === 'fr' ? 'Livrer à:' : 'Deliver to:'} {custMeta.district || 'Kigali'} ({custMeta.phone || ''})
                                 </Text>
                             )}
 
-                            {/* Handshake confirmation button */}
+                            {/* Handshake confirmation button — only shown when not yet delivered */}
                             {!item.delivered && (
                                 <TouchableOpacity
                                     style={[styles.confirmBtn, isConfirming && styles.btnDisabled]}
@@ -139,7 +189,9 @@ export default function CustomerOrders() {
                                 >
                                     <Ionicons name="checkmark-done-circle" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
                                     <Text style={styles.confirmBtnText}>
-                                        {isConfirming ? 'Confirming...' : 'Confirm Product Delivered'}
+                                        {isConfirming
+                                            ? (lang === 'rw' ? 'Gusaba...' : lang === 'fr' ? 'Confirmation...' : 'Confirming...')
+                                            : t.confirmReceipt}
                                     </Text>
                                 </TouchableOpacity>
                             )}

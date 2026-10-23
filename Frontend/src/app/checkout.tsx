@@ -20,6 +20,7 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import { Colors } from '../constants/Colors';
 import { processPayment, PaymentMethod } from '../services/paymentService';
+import { formatRWF } from '../constants/i18n';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -111,11 +112,34 @@ export default function CheckoutScreen() {
                 total_price: totalPrice,
             });
 
+            // Decrement product inventory and auto-delete immediately when copies reach 0
+            for (const item of cartItems) {
+                try {
+                    const prodRes = await api.get(`/products/${item.id}`);
+                    const currentProd = prodRes.data;
+                    if (currentProd) {
+                        const newQuantity = Math.max(0, (currentProd.quantity || 0) - (item.quantity || 1));
+                        if (newQuantity <= 0) {
+                            // Product ran out of items - delete instantly from system!
+                            await api.delete(`/products/${item.id}`);
+                        } else {
+                            await api.put(`/products/${item.id}`, {
+                                ...currentProd,
+                                quantity: newQuantity,
+                            });
+                        }
+                    }
+                } catch (prodErr) {
+                    // Backend order trigger may have already handled deletion
+                    console.log('[Inventory Sync]', item.id, prodErr);
+                }
+            }
+
             await clearCart();
 
             Alert.alert(
                 '🎉 Order Placed Successfully!',
-                `Thank you, ${fullName.trim()}!\nOrder Ref: #${cleanRef}\nPayment of $${totalPrice.toFixed(2)} received via ${selectedMethod.replace('_', ' ')}.`,
+                `Thank you, ${fullName.trim()}!\nOrder Ref: #${cleanRef}\nPayment of ${formatRWF(totalPrice)} received via ${selectedMethod.replace('_', ' ')}.`,
                 [{ text: 'View My Orders', onPress: () => router.replace('/(tabs)/tab4') }]
             );
         } catch (e: any) {
@@ -123,6 +147,7 @@ export default function CheckoutScreen() {
         } finally {
             setIsProcessing(false);
         }
+
     };
 
     return (
@@ -237,8 +262,9 @@ export default function CheckoutScreen() {
                             {/* Order Total Preview */}
                             <View style={styles.summaryBox}>
                                 <Text style={styles.summaryLabel}>Total to Pay:</Text>
-                                <Text style={styles.summaryAmount}>${totalPrice.toFixed(2)}</Text>
+                                <Text style={styles.summaryAmount}>{formatRWF(totalPrice)}</Text>
                             </View>
+
 
                             <Button
                                 title="Proceed to Payment →"
@@ -336,12 +362,12 @@ export default function CheckoutScreen() {
                                     District: <Text style={{ fontWeight: '700', color: Colors.text }}>{district}</Text>
                                 </Text>
                                 <Text style={styles.summaryLine}>
-                                    Total Amount: <Text style={{ fontWeight: '900', color: Colors.primary }}>${totalPrice.toFixed(2)}</Text>
+                                    Total Amount: <Text style={{ fontWeight: '900', color: Colors.primary }}>{formatRWF(totalPrice)}</Text>
                                 </Text>
                             </View>
 
                             <Button
-                                title={isProcessing ? "Processing Payment..." : `Confirm & Pay $${totalPrice.toFixed(2)}`}
+                                title={isProcessing ? "Processing Payment..." : `Confirm & Pay ${formatRWF(totalPrice)}`}
                                 onPress={handleCompletePaymentAndOrder}
                                 loading={isProcessing}
                                 style={styles.payBtn}

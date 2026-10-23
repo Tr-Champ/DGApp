@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
+import { formatRWF } from '../constants/i18n';
 
 export default function ProductCard({ product }: { product: any }) {
     const router = useRouter();
@@ -31,7 +32,11 @@ export default function ProductCard({ product }: { product: any }) {
             <Text style={styles.name} numberOfLines={1}>
                 {product?.name || 'Product'}
             </Text>
-            <Text style={styles.price}>${parseFloat(product?.price || 0).toFixed(2)}</Text>
+            <Text style={styles.price}>{formatRWF(parseFloat(product?.price || 0))}</Text>
+            {/* Show quantity badge only when low stock */}
+            {typeof product?.quantity === 'number' && product.quantity <= 5 && product.quantity > 0 && (
+                <Text style={styles.lowStock}>Only {product.quantity} left!</Text>
+            )}
         </TouchableOpacity>
     );
 }
@@ -89,5 +94,11 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: Colors.primary,
         marginTop: 4,
+    },
+    lowStock: {
+        fontSize: 11,
+        color: Colors.error,
+        fontWeight: '700',
+        marginTop: 2,
     },
 });

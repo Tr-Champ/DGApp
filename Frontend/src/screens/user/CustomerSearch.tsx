@@ -5,34 +5,50 @@ import api from '../../services/api';
 import Input from '../../components/Input';
 import ProductCard from '../../components/ProductCard';
 import { Colors } from '../../constants/Colors';
+import { useLanguage } from '../../context/LanguageContext';
 
 const CATEGORIES = ['All', 'Clothes', 'Shoes', 'Bags', 'Household', 'Jewelry', 'Cosmetics'];
-const PRICE_FILTERS = ['All Prices', 'Under $50', '$50 - $150', 'Over $150'];
+// RWF-based price tiers: < 50,000 / 50,000-150,000 / > 150,000
+const PRICE_FILTERS = ['All Prices', 'Under 50k RWF', '50k-150k RWF', 'Over 150k RWF'];
+
+// In-memory cache for instant zero-spinner loading on tab navigation
+let cachedSearchProducts: any[] = [];
 
 export default function CustomerSearch() {
+    const { t, lang } = useLanguage();
     const [search, setSearch] = useState('');
-    const [products, setProducts] = useState<any[]>([]);
+    const [products, setProducts] = useState<any[]>(cachedSearchProducts);
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [selectedPriceFilter, setSelectedPriceFilter] = useState('All Prices');
     const [sortAscending, setSortAscending] = useState<boolean | null>(null);
 
     useEffect(() => {
+        if (cachedSearchProducts.length === 0) {
+            fetchFilteredProducts();
+        }
+    }, []);
+
+    useEffect(() => {
         const delayDebounce = setTimeout(() => {
             fetchFilteredProducts();
-        }, 400);
+        }, 300);
         return () => clearTimeout(delayDebounce);
     }, [search]);
 
     const fetchFilteredProducts = async () => {
         try {
-            const res = await api.get(`/products/?search=${encodeURIComponent(search.trim())}`);
-            setProducts(res.data || []);
+            const url = search.trim() ? `/products/?search=${encodeURIComponent(search.trim())}` : '/products/';
+            const res = await api.get(url);
+            const data = res.data || [];
+            if (!search.trim()) cachedSearchProducts = data;
+            setProducts(data);
         } catch (e) {
             console.error(e);
         }
     };
 
-    // Filter by Category and Price
+
+    // Filter by Category and Price (RWF tiers)
     const filteredProducts = products.filter((p) => {
         const matchesCategory =
             selectedCategory === 'All' ||
@@ -40,12 +56,12 @@ export default function CustomerSearch() {
 
         const price = parseFloat(p.price || 0);
         let matchesPrice = true;
-        if (selectedPriceFilter === 'Under $50') {
-            matchesPrice = price < 50;
-        } else if (selectedPriceFilter === '$50 - $150') {
-            matchesPrice = price >= 50 && price <= 150;
-        } else if (selectedPriceFilter === 'Over $150') {
-            matchesPrice = price > 150;
+        if (selectedPriceFilter === 'Under 50k RWF') {
+            matchesPrice = price < 50000;
+        } else if (selectedPriceFilter === '50k-150k RWF') {
+            matchesPrice = price >= 50000 && price <= 150000;
+        } else if (selectedPriceFilter === 'Over 150k RWF') {
+            matchesPrice = price > 150000;
         }
 
         return matchesCategory && matchesPrice;
@@ -64,10 +80,11 @@ export default function CustomerSearch() {
         <View style={styles.container}>
             {/* Search Input */}
             <Input
-                placeholder="Search products by name..."
+                placeholder={lang === 'rw' ? 'Shakisha ibicuruzwa ku izina...' : lang === 'fr' ? 'Rechercher par nom de produit...' : 'Search products by name...'}
                 value={search}
                 onChangeText={setSearch}
             />
+
 
             {/* Category Filter Pills */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
@@ -114,7 +131,11 @@ export default function CustomerSearch() {
                         color={sortAscending !== null ? '#FFFFFF' : Colors.text}
                     />
                     <Text style={[styles.sortBtnText, sortAscending !== null && { color: '#FFFFFF' }]}>
-                        {sortAscending === true ? 'Price: Low' : sortAscending === false ? 'Price: High' : 'Sort'}
+                        {sortAscending === true
+                            ? (lang === 'rw' ? 'Igiciro: Hasi' : lang === 'fr' ? 'Prix: Bas' : 'Price: Low')
+                            : sortAscending === false
+                            ? (lang === 'rw' ? 'Igiciro: Hejuru' : lang === 'fr' ? 'Prix: Haut' : 'Price: High')
+                            : (lang === 'rw' ? 'Tondeka' : lang === 'fr' ? 'Trier' : 'Sort')}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -130,11 +151,16 @@ export default function CustomerSearch() {
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Ionicons name="search" size={42} color={Colors.border} style={{ marginBottom: 10 }} />
-                        <Text style={styles.emptyText}>No matching products found.</Text>
-                        <Text style={styles.emptySubtext}>Try adjusting your search terms or filters.</Text>
+                        <Text style={styles.emptyText}>
+                            {lang === 'rw' ? 'Nta bicuruzwa bihuye byabonetse.' : lang === 'fr' ? 'Aucun produit correspondant trouvé.' : 'No matching products found.'}
+                        </Text>
+                        <Text style={styles.emptySubtext}>
+                            {lang === 'rw' ? 'Gerageza guhindura ijambo ryo gushakisha cyangwa akayunguruzo.' : lang === 'fr' ? 'Essayez de modifier vos termes de recherche ou vos filtres.' : 'Try adjusting your search terms or filters.'}
+                        </Text>
                     </View>
                 }
             />
+
         </View>
     );
 }

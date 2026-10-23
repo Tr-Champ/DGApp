@@ -11,6 +11,7 @@ import Input from '../../components/Input';
 import Button from '../../components/Button';
 import { Colors } from '../../constants/Colors';
 import { uploadImageToCloudinary } from '../../services/imageService';
+import { formatRWF } from '../../constants/i18n';
 
 interface Product {
     id: string;
@@ -32,9 +33,12 @@ const EMPTY_FORM = {
     images: [] as string[],
 };
 
+// In-memory cache for instant zero-spinner loading on tab navigation
+let cachedAdminProducts: Product[] = [];
+
 export default function AdminProductsCrud() {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [products, setProducts] = useState<Product[]>(cachedAdminProducts);
+    const [loading, setLoading] = useState(cachedAdminProducts.length === 0);
     const [refreshing, setRefreshing] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [editTarget, setEditTarget] = useState<Product | null>(null);
@@ -42,10 +46,13 @@ export default function AdminProductsCrud() {
     const [saving, setSaving] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
 
-    const fetchProducts = useCallback(async () => {
+    const fetchProducts = useCallback(async (silent = false) => {
         try {
+            if (!silent && cachedAdminProducts.length === 0) setLoading(true);
             const res = await api.get('/products/');
-            setProducts(res.data);
+            const newProducts = res.data || [];
+            cachedAdminProducts = newProducts;
+            setProducts(newProducts);
         } catch (e) {
             console.error(e);
         } finally {
@@ -54,9 +61,12 @@ export default function AdminProductsCrud() {
         }
     }, []);
 
-    useEffect(() => { fetchProducts(); }, [fetchProducts]);
+    useEffect(() => {
+        fetchProducts(cachedAdminProducts.length > 0);
+    }, [fetchProducts]);
 
-    const onRefresh = () => { setRefreshing(true); fetchProducts(); };
+    const onRefresh = () => { setRefreshing(true); fetchProducts(true); };
+
 
     const openCreate = () => {
         setEditTarget(null);
@@ -235,8 +245,8 @@ export default function AdminProductsCrud() {
                             </View>
                             <View style={styles.cardInfo}>
                                 <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-                                <Text style={styles.cardPrice}>${item.price.toFixed(2)}</Text>
-                                <Text style={styles.cardMeta}>{item.category} · Stock: {item.quantity}</Text>
+                                <Text style={styles.cardPrice}>{formatRWF(item.price)}</Text>
+                                <Text style={styles.cardMeta}>{item.category} · {item.quantity} items</Text>
                             </View>
                             <View style={styles.cardActions}>
                                 <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(item)} activeOpacity={0.7}>
@@ -260,14 +270,15 @@ export default function AdminProductsCrud() {
                         <Text style={styles.modalLabel}>Product Name *</Text>
                         <Input placeholder="e.g. Leather Handbag" value={form.name} onChangeText={(v: string) => setForm((f) => ({ ...f, name: v }))} />
 
-                        <Text style={styles.modalLabel}>Price ($) *</Text>
-                        <Input placeholder="e.g. 49.99" value={form.price} onChangeText={(v: string) => setForm((f) => ({ ...f, price: v }))} keyboardType="numeric" />
+                        <Text style={styles.modalLabel}>Price (RWF) *</Text>
+                        <Input placeholder="e.g. 25000" value={form.price} onChangeText={(v: string) => setForm((f) => ({ ...f, price: v }))} keyboardType="numeric" />
 
                         <Text style={styles.modalLabel}>Category *</Text>
                         <Input placeholder="Clothes, Shoes, Bags, Household, Jewelry, Cosmetics" value={form.category} onChangeText={(v: string) => setForm((f) => ({ ...f, category: v }))} />
 
-                        <Text style={styles.modalLabel}>Stock Quantity</Text>
-                        <Input placeholder="e.g. 25" value={form.quantity} onChangeText={(v: string) => setForm((f) => ({ ...f, quantity: v }))} keyboardType="numeric" />
+                        <Text style={styles.modalLabel}>#Items (Number of Copies)</Text>
+                        <Input placeholder="e.g. 20" value={form.quantity} onChangeText={(v: string) => setForm((f) => ({ ...f, quantity: v }))} keyboardType="numeric" />
+
 
                         <Text style={styles.modalLabel}>Description</Text>
                         <Input placeholder="Product details, sizes, colors..." value={form.description} onChangeText={(v: string) => setForm((f) => ({ ...f, description: v }))} multiline numberOfLines={3} />

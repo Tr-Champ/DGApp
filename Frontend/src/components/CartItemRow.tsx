@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { useCart } from '../context/CartContext';
+import { formatRWF } from '../constants/i18n';
 
 export default function CartItemRow({ item }: any) {
     const { updateQuantity } = useCart();
@@ -10,7 +11,7 @@ export default function CartItemRow({ item }: any) {
         <View style={styles.row}>
             <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.price}>${item.price} x {item.quantity}</Text>
+                <Text style={styles.price}>{formatRWF(item.price)} × {item.quantity}</Text>
             </View>
             <View style={styles.controls}>
                 <TouchableOpacity style={styles.btn} onPress={() => updateQuantity(item.product_id, item.quantity - 1)}>

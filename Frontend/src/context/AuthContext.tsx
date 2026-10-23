@@ -16,6 +16,7 @@ interface AuthContextType {
     login: (email: string, pass: string) => Promise<void>;
     register: (email: string, pass: string) => Promise<void>;
     logout: () => Promise<void>;
+    deleteAccount: (email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -84,8 +85,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await login(email, pass);
     };
 
+    /**
+     * Delete the current user's account.
+     * Validates credentials first, then deletes all data from the backend,
+     * then clears local auth state.
+     */
+    const deleteAccount = async (email: string, password: string) => {
+        // Validate credentials first by logging in again
+        if (!user) throw new Error('Not authenticated');
+        if (email.trim().toLowerCase() !== user.email.toLowerCase()) {
+            throw new Error('Email does not match your account email.');
+        }
+
+        // Re-authenticate to confirm password
+        await api.post('/auth/login', { email: email.trim(), password });
+
+        // Delete all user data from backend
+        // Try dedicated delete endpoint; fall back to users/me DELETE
+        try {
+            await api.delete(`/users/${user.id}`);
+        } catch {
+            await api.delete('/users/me');
+        }
+
+        // Clear local auth state
+        await logout();
+    };
+
     return (
-        <AuthContext.Provider value={{ token, user, isLoading, login, register, logout }}>
+        <AuthContext.Provider value={{ token, user, isLoading, login, register, logout, deleteAccount }}>
             {children}
         </AuthContext.Provider>
     );

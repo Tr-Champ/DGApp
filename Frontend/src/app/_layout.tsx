@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { CartProvider } from '../context/CartContext';
+import { LanguageProvider } from '../context/LanguageContext';
 import { View, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { Colors } from '../constants/Colors';
 
@@ -27,7 +28,7 @@ function RootLayoutNav() {
     const router = useRouter();
     const [showSplash, setShowSplash] = useState(true);
 
-    // 3-second splash timer
+    // 4-second splash timer
     useEffect(() => {
         const timer = setTimeout(() => setShowSplash(false), SPLASH_DURATION);
         return () => clearTimeout(timer);
@@ -67,11 +68,13 @@ function RootLayoutNav() {
 export default function RootLayout() {
     return (
         <SafeAreaProvider>
-            <AuthProvider>
-                <CartProvider>
-                    <RootLayoutNav />
-                </CartProvider>
-            </AuthProvider>
+            <LanguageProvider>
+                <AuthProvider>
+                    <CartProvider>
+                        <RootLayoutNav />
+                    </CartProvider>
+                </AuthProvider>
+            </LanguageProvider>
         </SafeAreaProvider>
     );
 }
