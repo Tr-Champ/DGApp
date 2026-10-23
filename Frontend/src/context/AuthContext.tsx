@@ -2,6 +2,13 @@ import React, { createContext, useState, useEffect, useContext, useCallback } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 
+export interface AuthUser {
+    id: string;
+    email: string;
+    is_admin: boolean;
+    role: 'admin' | 'user';
+}
+
 interface AuthContextType {
     token: string | null;
     user: AuthUser | null;
@@ -9,12 +16,6 @@ interface AuthContextType {
     login: (email: string, pass: string) => Promise<void>;
     register: (email: string, pass: string) => Promise<void>;
     logout: () => Promise<void>;
-}
-
-interface AuthUser {
-    id: string;
-    email: string;
-    is_admin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -30,13 +31,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(null);
     }, []);
 
+    const normalizeUser = (data: any): AuthUser => {
+        const isAdmin = Boolean(data.is_admin || data.role === 'admin');
+        return {
+            id: String(data.id || ''),
+            email: data.email || '',
+            is_admin: isAdmin,
+            role: isAdmin ? 'admin' : 'user',
+        };
+    };
+
     const loadStoredAuth = useCallback(async () => {
         try {
             const storedToken = await AsyncStorage.getItem('user_token');
             if (storedToken) {
-                const res = await api.get<AuthUser>('/users/me');
+                const res = await api.get('/users/me');
                 setToken(storedToken);
-                setUser(res.data);
+                setUser(normalizeUser(res.data));
             }
         } catch (e) {
             console.error(e);
@@ -59,9 +70,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         await AsyncStorage.setItem('user_token', accessToken);
         try {
-            const userRes = await api.get<AuthUser>('/users/me');
+            const userRes = await api.get('/users/me');
             setToken(accessToken);
-            setUser(userRes.data);
+            setUser(normalizeUser(userRes.data));
         } catch (error) {
             await AsyncStorage.removeItem('user_token');
             throw error;

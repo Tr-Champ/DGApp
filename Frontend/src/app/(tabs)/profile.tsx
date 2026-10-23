@@ -12,8 +12,15 @@ export default function ProfileScreen() {
 
     return (
         <View style={styles.container}>
+            {user?.is_admin && (
+                <View style={styles.adminBadge}>
+                    <Text style={styles.adminBadgeText}>👑 Admin Account</Text>
+                </View>
+            )}
+
             <Text style={styles.email}>{user?.email}</Text>
 
+            <Text style={styles.sectionLabel}>Language</Text>
             <View style={styles.langContainer}>
                 <Button title="English" onPress={() => setLang('en')} style={lang === 'en' ? styles.activeLang : styles.inactiveLang} />
                 <Button title="Kinyarwanda" onPress={() => setLang('rw')} style={lang === 'rw' ? styles.activeLang : styles.inactiveLang} />
@@ -27,8 +34,14 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, padding: 20, backgroundColor: Colors.background, justifyContent: 'center' },
-    email: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 20, color: Colors.text },
-    langContainer: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: 20 },
+    adminBadge: {
+        backgroundColor: Colors.secondary, borderRadius: 20, paddingVertical: 6,
+        paddingHorizontal: 16, alignSelf: 'center', marginBottom: 16,
+    },
+    adminBadgeText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+    email: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 8, color: Colors.text },
+    sectionLabel: { fontSize: 13, fontWeight: '600', color: Colors.textMuted, textAlign: 'center', marginBottom: 8, marginTop: 16 },
+    langContainer: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: 10 },
     activeLang: { backgroundColor: Colors.primary, paddingHorizontal: 10 },
-    inactiveLang: { backgroundColor: Colors.textMuted, paddingHorizontal: 10 }
+    inactiveLang: { backgroundColor: Colors.textMuted, paddingHorizontal: 10 },
 });

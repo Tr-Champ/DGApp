@@ -19,4 +19,15 @@ def create_order(db: Session, user_id: str, order_data: OrderCreate):
     return db_order
 
 def get_orders_by_user(db: Session, user_id: str):
-    return db.query(Order).filter(Order.user_id == user_id).order_by(Order.created_at.desc()).all()
+    return db.query(Order).filter(Order.user_id == user_id).order_by(Order.created_at.desc()).all()
+
+def get_all_orders(db: Session):
+    return db.query(Order).order_by(Order.created_at.desc()).all()
+
+def mark_order_delivered(db: Session, order_id: str):
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if order:
+        order.delivered = True
+        db.commit()
+        db.refresh(order)
+    return order

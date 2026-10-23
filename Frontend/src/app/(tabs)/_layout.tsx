@@ -2,49 +2,84 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { useAuth } from '../../context/AuthContext';
 
 export default function TabLayout() {
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin' || user?.is_admin === true;
+
     return (
         <Tabs
             screenOptions={{
                 tabBarActiveTintColor: Colors.primary,
-                headerStyle: { backgroundColor: Colors.primary },
-                headerTintColor: '#fff',
+                tabBarInactiveTintColor: Colors.textMuted,
+                tabBarStyle: {
+                    backgroundColor: '#FFFFFF',
+                    borderTopColor: Colors.border,
+                    borderTopWidth: 1,
+                    height: 60,
+                    paddingBottom: 8,
+                    paddingTop: 6,
+                },
+                headerStyle: {
+                    backgroundColor: Colors.primary,
+                },
+                headerTintColor: '#FFFFFF',
+                headerTitleStyle: {
+                    fontWeight: '700',
+                    fontSize: 18,
+                },
             }}
         >
             <Tabs.Screen
-                name="index"
+                name="tab1"
                 options={{
-                    title: 'Home',
+                    title: isAdmin ? 'Dashboard' : 'Home',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="home-outline" size={size} color={color as string} />
+                        <Ionicons
+                            name={isAdmin ? 'grid-outline' : 'home-outline'}
+                            size={size}
+                            color={color as string}
+                        />
                     ),
                 }}
             />
             <Tabs.Screen
-                name="search"
+                name="tab2"
                 options={{
-                    title: 'Search',
+                    title: isAdmin ? 'Products' : 'Search',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="search-outline" size={size} color={color as string} />
+                        <Ionicons
+                            name={isAdmin ? 'cube-outline' : 'search-outline'}
+                            size={size}
+                            color={color as string}
+                        />
                     ),
                 }}
             />
             <Tabs.Screen
-                name="cart"
+                name="tab3"
                 options={{
-                    title: 'Cart',
+                    title: isAdmin ? 'Deliveries' : 'Cart',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="cart-outline" size={size} color={color as string} />
+                        <Ionicons
+                            name={isAdmin ? 'checkmark-done-circle-outline' : 'cart-outline'}
+                            size={size}
+                            color={color as string}
+                        />
                     ),
                 }}
             />
             <Tabs.Screen
-                name="orders"
+                name="tab4"
                 options={{
-                    title: 'Orders',
+                    title: isAdmin ? 'Reports' : 'Orders',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="list-outline" size={size} color={color as string} />
+                        <Ionicons
+                            name={isAdmin ? 'bar-chart-outline' : 'list-outline'}
+                            size={size}
+                            color={color as string}
+                        />
                     ),
                 }}
             />
@@ -53,8 +88,37 @@ export default function TabLayout() {
                 options={{
                     title: 'Profile',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="person-outline" size={size} color={color as string} />
+                        <Ionicons
+                            name="person-outline"
+                            size={size}
+                            color={color as string}
+                        />
                     ),
+                }}
+            />
+            {/* Hidden legacy tab redirects so old deep links don't break */}
+            <Tabs.Screen
+                name="index"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="search"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="cart"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="orders"
+                options={{
+                    href: null,
                 }}
             />
         </Tabs>

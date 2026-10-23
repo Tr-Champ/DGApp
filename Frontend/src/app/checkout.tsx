@@ -25,7 +25,7 @@ export default function CheckoutScreen() {
             });
             await clearCart();
             Alert.alert('Success', 'Order placed successfully!', [
-                { text: 'OK', onPress: () => router.replace('/(tabs)/orders') }
+                { text: 'OK', onPress: () => router.replace('/(tabs)/tab4') }
             ]);
         } catch (e: any) {
             Alert.alert('Checkout Failed', e.response?.data?.detail || 'Could not complete order');
