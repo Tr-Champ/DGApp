@@ -66,10 +66,12 @@ export default function ProductDetailScreen() {
         );
     }
 
-    const images: string[] =
-        Array.isArray(product.images) && product.images.length > 0
-            ? product.images
-            : ['https://via.placeholder.com/400'];
+    const rawImages: string[] = Array.isArray(product?.images) ? product.images : [];
+    const validImages = rawImages.filter((img: any) => typeof img === 'string' && img.startsWith('http'));
+    const images: string[] = validImages.length > 0
+        ? validImages
+        : ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80'];
+
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>

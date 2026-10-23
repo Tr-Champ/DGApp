@@ -91,36 +91,63 @@ export default function AdminProductsCrud() {
 
     // Pick one or multiple images from device library
     const pickImage = async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsMultipleSelection: true,
-            selectionLimit: 10,
-            quality: 0.8,
-        });
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsMultipleSelection: true,
+                selectionLimit: 10,
+                quality: 0.7,
+                base64: true, // Provides base64 for reliable Cloudinary upload
+            });
 
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-            setUploadingImage(true);
-            try {
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                setUploadingImage(true);
                 const uploadedUrls: string[] = [];
+                let failedCount = 0;
+
                 for (const asset of result.assets) {
                     if (asset.uri) {
                         try {
-                            const cloudUrl = await uploadImageToCloudinary(asset.uri);
-                            uploadedUrls.push(cloudUrl || asset.uri);
-                        } catch {
-                            uploadedUrls.push(asset.uri);
+                            const cloudUrl = await uploadImageToCloudinary({
+                                uri: asset.uri,
+                                base64: asset.base64,
+                                mimeType: asset.mimeType,
+                            });
+                            // ONLY accept real Cloudinary / web URLs - NEVER local file:/// URIs
+                            if (cloudUrl && cloudUrl.startsWith('http')) {
+                                uploadedUrls.push(cloudUrl);
+                            } else {
+                                failedCount++;
+                            }
+                        } catch (err) {
+                            console.error('[Cloudinary Upload Error]', err);
+                            failedCount++;
                         }
                     }
                 }
-                setForm((f) => ({
-                    ...f,
-                    images: [...f.images, ...uploadedUrls],
-                }));
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setUploadingImage(false);
+
+                if (uploadedUrls.length > 0) {
+                    setForm((f) => ({
+                        ...f,
+                        images: [...f.images, ...uploadedUrls],
+                    }));
+                    Alert.alert(
+                        'Upload Successful ☁️',
+                        `Uploaded ${uploadedUrls.length} image(s) to Cloudinary!` +
+                        (failedCount > 0 ? ` (${failedCount} failed to upload)` : '')
+                    );
+                } else if (failedCount > 0) {
+                    Alert.alert(
+                        'Upload Failed',
+                        'Could not upload images to Cloudinary. Please check your internet connection and try again.'
+                    );
+                }
             }
+        } catch (e: any) {
+            console.error('[ImagePicker Error]', e);
+            Alert.alert('Error', 'Could not open device photo gallery.');
+        } finally {
+            setUploadingImage(false);
         }
     };
 
@@ -128,6 +155,9 @@ export default function AdminProductsCrud() {
     const addImageUrl = () => {
         const trimmed = form.imageUrlInput.trim();
         if (!trimmed) return;
+        if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+            return Alert.alert('Invalid URL', 'Please enter a valid web image URL (must start with https://).');
+        }
         setForm((f) => ({
             ...f,
             images: [...f.images, trimmed],
@@ -153,9 +183,19 @@ export default function AdminProductsCrud() {
         }
 
         // Include any typed URL that hasn't been added yet
-        let finalImages = [...form.images];
+        let allImages = [...form.images];
         if (form.imageUrlInput.trim()) {
-            finalImages.push(form.imageUrlInput.trim());
+            allImages.push(form.imageUrlInput.trim());
+        }
+
+        // Strictly filter out any local file:// URIs so only Cloudinary/web URLs reach the database
+        const finalImages = allImages.filter(img => typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://')));
+
+        if (finalImages.length === 0 && allImages.length > 0) {
+            return Alert.alert(
+                'Cloudinary Upload Required',
+                'Images must be uploaded to Cloudinary (must start with https://). Local file paths are not allowed.'
+            );
         }
 
         try {
@@ -178,14 +218,15 @@ export default function AdminProductsCrud() {
             }
 
             setModalVisible(false);
-            fetchProducts();
-            Alert.alert('Success', `Product ${editTarget ? 'updated' : 'created'} with ${finalImages.length} image(s)!`);
+            fetchProducts(true);
+            Alert.alert('Success', `Product ${editTarget ? 'updated' : 'created'} with ${finalImages.length} Cloudinary image(s)!`);
         } catch (e: any) {
             Alert.alert('Error', e.response?.data?.detail || 'Could not save product.');
         } finally {
             setSaving(false);
         }
     };
+
 
     const handleDelete = (p: Product) => {
         Alert.alert('Confirm Deletion', `Are you sure you want to delete "${p.name}"?`, [
@@ -226,12 +267,14 @@ export default function AdminProductsCrud() {
                     </View>
                 }
                 renderItem={({ item }) => {
-                    const imgCount = Array.isArray(item.images) ? item.images.length : 0;
+                    const validImages = Array.isArray(item.images) ? item.images.filter((img: any) => typeof img === 'string' && img.startsWith('http')) : [];
+                    const imgCount = validImages.length;
+                    const thumbUri = validImages[0];
                     return (
                         <View style={styles.card}>
                             <View style={styles.thumbWrapper}>
-                                {item.images?.[0] ? (
-                                    <Image source={{ uri: item.images[0] }} style={styles.thumb} />
+                                {thumbUri ? (
+                                    <Image source={{ uri: thumbUri }} style={styles.thumb} />
                                 ) : (
                                     <View style={[styles.thumb, styles.noImage]}>
                                         <Text style={{ fontSize: 10, color: Colors.textMuted }}>No Pic</Text>
@@ -243,6 +286,7 @@ export default function AdminProductsCrud() {
                                     </View>
                                 )}
                             </View>
+
                             <View style={styles.cardInfo}>
                                 <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
                                 <Text style={styles.cardPrice}>{formatRWF(item.price)}</Text>

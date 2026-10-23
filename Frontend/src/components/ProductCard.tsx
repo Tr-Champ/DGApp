@@ -8,11 +8,11 @@ import { formatRWF } from '../constants/i18n';
 export default function ProductCard({ product }: { product: any }) {
     const router = useRouter();
 
-    const images: string[] = Array.isArray(product?.images) && product.images.length > 0
-        ? product.images
-        : ['https://via.placeholder.com/150'];
-    const imageUrl = images[0];
-    const imageCount = images.length;
+    const rawImages: string[] = Array.isArray(product?.images) ? product.images : [];
+    const validImages = rawImages.filter((img: any) => typeof img === 'string' && img.startsWith('http'));
+    const imageUrl = validImages[0] || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80';
+    const imageCount = validImages.length;
+
 
     return (
         <TouchableOpacity
