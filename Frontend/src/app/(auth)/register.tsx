@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
     View,
     Text,
+    Image,
     StyleSheet,
     TouchableOpacity,
     Alert,
@@ -9,6 +10,7 @@ import {
     Platform,
     ScrollView,
 } from 'react-native';
+
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -64,11 +66,14 @@ export default function RegisterScreen() {
                 >
                     {/* Branding Header */}
                     <View style={styles.brandContainer}>
-                        <View style={styles.logoBadge}>
-                            <Text style={styles.logoBadgeText}>D&G</Text>
-                        </View>
+                        <Image
+                            source={require('../../../assets/DGLoGo.jpg')}
+                            style={styles.logoImage}
+                            resizeMode="contain"
+                        />
                         <Text style={styles.brandSub}>Create Your Account</Text>
                     </View>
+
 
                     {/* Fenced Card Container */}
                     <View style={styles.fencedCard}>
@@ -144,24 +149,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 24,
     },
-    logoBadge: {
-        backgroundColor: Colors.primary,
-        paddingVertical: 10,
-        paddingHorizontal: 24,
-        borderRadius: 16,
+    logoImage: {
+        width: 100,
+        height: 100,
+        borderRadius: 22,
+        marginBottom: 8,
         shadowColor: Colors.primary,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
         shadowRadius: 8,
         elevation: 6,
     },
-    logoBadgeText: {
-        fontSize: 34,
-        fontWeight: '900',
-        color: '#FFFFFF',
-        letterSpacing: 3,
-    },
     brandSub: {
+
         fontSize: 13,
         fontWeight: '600',
         color: Colors.textMuted,

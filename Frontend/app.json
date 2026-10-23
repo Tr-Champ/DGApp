@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "D&G Retail",
-    "slug": "dg-retail",
+    "name": "E-Commerce App",
+    "slug": "e-commerce-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/DGLoGo.jpg",
     "scheme": "dgretail",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/DGLoGo.jpg",
       "bundleIdentifier": "com.dgretail.app",
       "supportsTablet": true
     },
@@ -16,16 +16,17 @@
       "package": "com.dgretail.app",
       "adaptiveIcon": {
         "backgroundColor": "#2E7D32",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "foregroundImage": "./assets/DGLoGo.jpg",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "monochromeImage": "./assets/DGLoGo.jpg"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "server",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/DGLoGo.jpg"
     },
+
     "plugins": [
       "expo-router",
       [

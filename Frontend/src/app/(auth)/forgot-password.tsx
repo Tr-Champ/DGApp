@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../services/api';
@@ -54,10 +54,13 @@ export default function ForgotPasswordScreen() {
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
                     <View style={styles.brandContainer}>
-                        <View style={styles.logoBadge}>
-                            <Text style={styles.logoBadgeText}>D&G</Text>
-                        </View>
+                        <Image
+                            source={require('../../../assets/DGLoGo.jpg')}
+                            style={styles.logoImage}
+                            resizeMode="contain"
+                        />
                     </View>
+
 
                     <View style={styles.fencedCard}>
                         <Text style={styles.title}>Reset Password</Text>
@@ -88,15 +91,14 @@ const styles = StyleSheet.create({
     safeContainer: { flex: 1, backgroundColor: '#F3F4F6' },
     container: { flexGrow: 1, justifyContent: 'center', padding: 20 },
     brandContainer: { alignItems: 'center', marginBottom: 20 },
-    logoBadge: {
-        backgroundColor: Colors.primary,
-        paddingVertical: 10,
-        paddingHorizontal: 24,
-        borderRadius: 16,
+    logoImage: {
+        width: 90,
+        height: 90,
+        borderRadius: 20,
         elevation: 4,
     },
-    logoBadgeText: { fontSize: 32, fontWeight: '900', color: '#FFFFFF', letterSpacing: 2 },
     fencedCard: {
+
         backgroundColor: '#FFFFFF',
         borderRadius: 20,
         padding: 24,
