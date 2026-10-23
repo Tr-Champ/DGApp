@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "E-Commerce App",
-    "slug": "e-commerce-app",
+    "slug": "dg-retail",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/DGLoGo.jpg",
@@ -26,7 +26,6 @@
       "output": "server",
       "favicon": "./assets/DGLoGo.jpg"
     },
-
     "plugins": [
       "expo-router",
       [
