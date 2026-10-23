@@ -51,8 +51,8 @@ export async function uploadImageToCloudinary(
             if (result.secure_url) {
                 return result.secure_url;
             } else {
-                console.error('[Cloudinary Base64 Error]:', result);
-                Alert.alert('Upload Failed', result.error?.message || 'Cloudinary upload failed.');
+                console.error('[Cloud Base64 Error]:', result);
+                Alert.alert('Upload Failed', result.error?.message || 'Cloud upload failed.');
                 return null;
             }
         }
@@ -89,13 +89,13 @@ export async function uploadImageToCloudinary(
         if (result.secure_url) {
             return result.secure_url;
         } else {
-            console.error('[Cloudinary FormData Error]:', result);
-            Alert.alert('Upload Failed', result.error?.message || 'Could not upload image to Cloudinary.');
+            console.error('[Cloud FormData Error]:', result);
+            Alert.alert('Upload Failed', result.error?.message || 'Cloud upload failed.');
             return null;
         }
     } catch (error: any) {
-        console.error('[Cloudinary Network Error]:', error);
-        Alert.alert('Upload Error', 'Network error while uploading image to Cloudinary. Please check your connection.');
+        console.error('[Cloud Network Error]:', error);
+        Alert.alert('Upload Error', 'Network error while uploading image to Cloud. Please check your connection.');
         return null;
     }
-}
+}

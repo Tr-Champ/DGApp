@@ -20,7 +20,7 @@ interface Product {
     category: string;
     quantity: number;
     images: string[];
-    info?: { description?: string; [key: string]: any };
+    info?: { description?: string;[key: string]: any };
 }
 
 const EMPTY_FORM = {
@@ -120,7 +120,7 @@ export default function AdminProductsCrud() {
                                 failedCount++;
                             }
                         } catch (err) {
-                            console.error('[Cloudinary Upload Error]', err);
+                            console.error('[Cloud Upload Error]', err);
                             failedCount++;
                         }
                     }
@@ -133,13 +133,13 @@ export default function AdminProductsCrud() {
                     }));
                     Alert.alert(
                         'Upload Successful ☁️',
-                        `Uploaded ${uploadedUrls.length} image(s) to Cloudinary!` +
+                        `Uploaded ${uploadedUrls.length} image(s)!` +
                         (failedCount > 0 ? ` (${failedCount} failed to upload)` : '')
                     );
                 } else if (failedCount > 0) {
                     Alert.alert(
                         'Upload Failed',
-                        'Could not upload images to Cloudinary. Please check your internet connection and try again.'
+                        'Could not upload images to Cloud. Please check your internet connection and try again.'
                     );
                 }
             }
@@ -193,8 +193,8 @@ export default function AdminProductsCrud() {
 
         if (finalImages.length === 0 && allImages.length > 0) {
             return Alert.alert(
-                'Cloudinary Upload Required',
-                'Images must be uploaded to Cloudinary (must start with https://). Local file paths are not allowed.'
+                'Image Upload Required',
+                'Images must be uploaded to System (must start with https://). Local file paths are not allowed.'
             );
         }
 
@@ -219,7 +219,7 @@ export default function AdminProductsCrud() {
 
             setModalVisible(false);
             fetchProducts(true);
-            Alert.alert('Success', `Product ${editTarget ? 'updated' : 'created'} with ${finalImages.length} Cloudinary image(s)!`);
+            Alert.alert('Success', `Product ${editTarget ? 'updated' : 'created'} with ${finalImages.length} Cloud image(s)!`);
         } catch (e: any) {
             Alert.alert('Error', e.response?.data?.detail || 'Could not save product.');
         } finally {

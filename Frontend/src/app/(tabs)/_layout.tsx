@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
+import { DevIcon } from '../../components/DevInfoModal';
 
 export default function TabLayout() {
     const { user } = useAuth();
@@ -50,6 +51,7 @@ export default function TabLayout() {
                     fontWeight: '700',
                     fontSize: 18,
                 },
+                headerRight: () => <DevIcon />,
             }}
         >
             <Tabs.Screen

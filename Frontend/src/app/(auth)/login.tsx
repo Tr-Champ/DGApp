@@ -64,7 +64,7 @@ export default function LoginScreen() {
                             style={styles.logoImage}
                             resizeMode="contain"
                         />
-                        <Text style={styles.brandSub}>Retail & E-Commerce</Text>
+                        <Text style={styles.brandSub}>E-Commerce App</Text>
                     </View>
 
 
