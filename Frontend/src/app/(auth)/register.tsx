@@ -10,6 +10,7 @@ import {
     ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
@@ -51,87 +52,93 @@ export default function RegisterScreen() {
     };
 
     return (
-        <KeyboardAvoidingView
-            style={styles.keyboardContainer}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-            <ScrollView
-                contentContainerStyle={styles.scrollContainer}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
+        <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right', 'bottom']}>
+            <KeyboardAvoidingView
+                style={styles.keyboardContainer}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-                {/* Branding Header */}
-                <View style={styles.brandContainer}>
-                    <View style={styles.logoBadge}>
-                        <Text style={styles.logoBadgeText}>D&G</Text>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContainer}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
+                    {/* Branding Header */}
+                    <View style={styles.brandContainer}>
+                        <View style={styles.logoBadge}>
+                            <Text style={styles.logoBadgeText}>D&G</Text>
+                        </View>
+                        <Text style={styles.brandSub}>Create Your Account</Text>
                     </View>
-                    <Text style={styles.brandSub}>Create Your Account</Text>
-                </View>
 
-                {/* Fenced Card Container */}
-                <View style={styles.fencedCard}>
-                    <Text style={styles.cardTitle}>Get Started</Text>
-                    <Text style={styles.cardSubtitle}>Join our modern retail platform</Text>
+                    {/* Fenced Card Container */}
+                    <View style={styles.fencedCard}>
+                        <Text style={styles.cardTitle}>Get Started</Text>
+                        <Text style={styles.cardSubtitle}>Join our modern retail platform</Text>
 
-                    <Text style={styles.fieldLabel}>Email Address</Text>
-                    <Input
-                        placeholder="e.g. name@example.com"
-                        value={email}
-                        onChangeText={setEmail}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        keyboardType="email-address"
-                    />
+                        <Text style={styles.fieldLabel}>Email Address</Text>
+                        <Input
+                            placeholder="e.g. name@example.com"
+                            value={email}
+                            onChangeText={setEmail}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            keyboardType="email-address"
+                        />
 
-                    <Text style={styles.fieldLabel}>Password</Text>
-                    <Input
-                        placeholder="At least 6 characters"
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                    />
+                        <Text style={styles.fieldLabel}>Password</Text>
+                        <Input
+                            placeholder="At least 6 characters"
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry
+                        />
 
-                    <Text style={styles.fieldLabel}>Confirm Password</Text>
-                    <Input
-                        placeholder="Re-enter your password"
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        secureTextEntry
-                    />
+                        <Text style={styles.fieldLabel}>Confirm Password</Text>
+                        <Input
+                            placeholder="Re-enter your password"
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                            secureTextEntry
+                        />
 
-                    <Button
-                        title="Create Account"
-                        onPress={handleRegister}
-                        loading={loading}
-                        style={styles.registerBtn}
-                    />
-                </View>
+                        <Button
+                            title="Create Account"
+                            onPress={handleRegister}
+                            loading={loading}
+                            style={styles.registerBtn}
+                        />
+                    </View>
 
-                {/* Footer Switch */}
-                <View style={styles.footerContainer}>
-                    <Text style={styles.footerText}>Already have an account? </Text>
-                    <TouchableOpacity
-                        onPress={() => router.replace('/(auth)/login')}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={styles.footerLink}>Sign In</Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                    {/* Footer Switch */}
+                    <View style={styles.footerContainer}>
+                        <Text style={styles.footerText}>Already have an account? </Text>
+                        <TouchableOpacity
+                            onPress={() => router.replace('/(auth)/login')}
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                            <Text style={styles.footerLink}>Sign In</Text>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    keyboardContainer: {
+    safeContainer: {
         flex: 1,
         backgroundColor: '#F3F4F6',
+    },
+    keyboardContainer: {
+        flex: 1,
     },
     scrollContainer: {
         flexGrow: 1,
         justifyContent: 'center',
         paddingHorizontal: 20,
-        paddingVertical: 32,
+        paddingVertical: 24,
     },
     brandContainer: {
         alignItems: 'center',

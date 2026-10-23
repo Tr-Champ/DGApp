@@ -4,6 +4,8 @@ import {
     RefreshControl, TouchableOpacity, Alert, Modal, ScrollView, Image
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../services/api';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
@@ -26,7 +28,7 @@ const EMPTY_FORM = {
     category: '',
     quantity: '',
     description: '',
-    imageUrl: '',
+    imageUrlInput: '',
     images: [] as string[],
 };
 
@@ -64,47 +66,71 @@ export default function AdminProductsCrud() {
 
     const openEdit = (p: Product) => {
         setEditTarget(p);
-        const firstImg = p.images?.[0] || '';
+        const productImages = Array.isArray(p.images) ? p.images : [];
         setForm({
             name: p.name,
             price: String(p.price),
             category: p.category,
             quantity: String(p.quantity),
             description: p.info?.description || '',
-            imageUrl: firstImg,
-            images: p.images || [],
+            imageUrlInput: '',
+            images: productImages,
         });
         setModalVisible(true);
     };
 
+    // Pick one or multiple images from device library
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
+            allowsMultipleSelection: true,
+            selectionLimit: 10,
             quality: 0.8,
         });
-        if (!result.canceled && result.assets[0].uri) {
-            const localUri = result.assets[0].uri;
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
             setUploadingImage(true);
             try {
-                const cloudUrl = await uploadImageToCloudinary(localUri);
-                const finalUrl = cloudUrl || localUri;
+                const uploadedUrls: string[] = [];
+                for (const asset of result.assets) {
+                    if (asset.uri) {
+                        try {
+                            const cloudUrl = await uploadImageToCloudinary(asset.uri);
+                            uploadedUrls.push(cloudUrl || asset.uri);
+                        } catch {
+                            uploadedUrls.push(asset.uri);
+                        }
+                    }
+                }
                 setForm((f) => ({
                     ...f,
-                    imageUrl: finalUrl,
-                    images: [finalUrl],
+                    images: [...f.images, ...uploadedUrls],
                 }));
             } catch (err) {
-                setForm((f) => ({
-                    ...f,
-                    imageUrl: localUri,
-                    images: [localUri],
-                }));
+                console.error(err);
             } finally {
                 setUploadingImage(false);
             }
         }
+    };
+
+    // Add image URL manually
+    const addImageUrl = () => {
+        const trimmed = form.imageUrlInput.trim();
+        if (!trimmed) return;
+        setForm((f) => ({
+            ...f,
+            images: [...f.images, trimmed],
+            imageUrlInput: '',
+        }));
+    };
+
+    // Remove single image from list
+    const removeImage = (indexToRemove: number) => {
+        setForm((f) => ({
+            ...f,
+            images: f.images.filter((_, idx) => idx !== indexToRemove),
+        }));
     };
 
     const handleSave = async () => {
@@ -116,9 +142,11 @@ export default function AdminProductsCrud() {
             return Alert.alert('Validation Error', 'Product name, valid price, and category are required.');
         }
 
-        const imagesToSave = form.imageUrl.trim()
-            ? [form.imageUrl.trim()]
-            : form.images;
+        // Include any typed URL that hasn't been added yet
+        let finalImages = [...form.images];
+        if (form.imageUrlInput.trim()) {
+            finalImages.push(form.imageUrlInput.trim());
+        }
 
         try {
             setSaving(true);
@@ -127,7 +155,7 @@ export default function AdminProductsCrud() {
                 price: parsedPrice,
                 category: trimmedCategory,
                 quantity: parseInt(form.quantity || '0', 10),
-                images: imagesToSave,
+                images: finalImages,
                 info: {
                     description: form.description.trim(),
                 },
@@ -141,7 +169,7 @@ export default function AdminProductsCrud() {
 
             setModalVisible(false);
             fetchProducts();
-            Alert.alert('Success', `Product ${editTarget ? 'updated' : 'created'} successfully!`);
+            Alert.alert('Success', `Product ${editTarget ? 'updated' : 'created'} with ${finalImages.length} image(s)!`);
         } catch (e: any) {
             Alert.alert('Error', e.response?.data?.detail || 'Could not save product.');
         } finally {
@@ -187,80 +215,136 @@ export default function AdminProductsCrud() {
                         <Text style={styles.emptyText}>No products yet. Tap "+ Add New Product" to populate your catalog.</Text>
                     </View>
                 }
-                renderItem={({ item }) => (
-                    <View style={styles.card}>
-                        {item.images?.[0] ? (
-                            <Image source={{ uri: item.images[0] }} style={styles.thumb} />
-                        ) : (
-                            <View style={[styles.thumb, styles.noImage]}>
-                                <Text style={{ fontSize: 10, color: Colors.textMuted }}>No Pic</Text>
+                renderItem={({ item }) => {
+                    const imgCount = Array.isArray(item.images) ? item.images.length : 0;
+                    return (
+                        <View style={styles.card}>
+                            <View style={styles.thumbWrapper}>
+                                {item.images?.[0] ? (
+                                    <Image source={{ uri: item.images[0] }} style={styles.thumb} />
+                                ) : (
+                                    <View style={[styles.thumb, styles.noImage]}>
+                                        <Text style={{ fontSize: 10, color: Colors.textMuted }}>No Pic</Text>
+                                    </View>
+                                )}
+                                {imgCount > 1 && (
+                                    <View style={styles.thumbBadge}>
+                                        <Text style={styles.thumbBadgeText}>{imgCount}</Text>
+                                    </View>
+                                )}
                             </View>
-                        )}
-                        <View style={styles.cardInfo}>
-                            <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-                            <Text style={styles.cardPrice}>${item.price.toFixed(2)}</Text>
-                            <Text style={styles.cardMeta}>{item.category} · In Stock: {item.quantity}</Text>
+                            <View style={styles.cardInfo}>
+                                <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
+                                <Text style={styles.cardPrice}>${item.price.toFixed(2)}</Text>
+                                <Text style={styles.cardMeta}>{item.category} · Stock: {item.quantity}</Text>
+                            </View>
+                            <View style={styles.cardActions}>
+                                <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(item)} activeOpacity={0.7}>
+                                    <Text style={styles.editBtnText}>Edit</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)} activeOpacity={0.7}>
+                                    <Text style={styles.deleteBtnText}>Delete</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                        <View style={styles.cardActions}>
-                            <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(item)} activeOpacity={0.7}>
-                                <Text style={styles.editBtnText}>Edit</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)} activeOpacity={0.7}>
-                                <Text style={styles.deleteBtnText}>Delete</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
+                    );
+                }}
             />
 
+            {/* Product Edit / Create Modal */}
             <Modal visible={modalVisible} animationType="slide" onRequestClose={() => setModalVisible(false)}>
-                <ScrollView contentContainerStyle={styles.modalContainer} keyboardShouldPersistTaps="handled">
-                    <Text style={styles.modalTitle}>{editTarget ? 'Edit Product' : 'Add New Product'}</Text>
+                <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+                    <ScrollView contentContainerStyle={styles.modalContainer} keyboardShouldPersistTaps="handled">
+                        <Text style={styles.modalTitle}>{editTarget ? 'Edit Product' : 'Add New Product'}</Text>
 
-                    <Text style={styles.modalLabel}>Product Name *</Text>
-                    <Input placeholder="e.g. Leather Handbag" value={form.name} onChangeText={(v: string) => setForm((f) => ({ ...f, name: v }))} />
+                        <Text style={styles.modalLabel}>Product Name *</Text>
+                        <Input placeholder="e.g. Leather Handbag" value={form.name} onChangeText={(v: string) => setForm((f) => ({ ...f, name: v }))} />
 
-                    <Text style={styles.modalLabel}>Price ($) *</Text>
-                    <Input placeholder="e.g. 49.99" value={form.price} onChangeText={(v: string) => setForm((f) => ({ ...f, price: v }))} keyboardType="numeric" />
+                        <Text style={styles.modalLabel}>Price ($) *</Text>
+                        <Input placeholder="e.g. 49.99" value={form.price} onChangeText={(v: string) => setForm((f) => ({ ...f, price: v }))} keyboardType="numeric" />
 
-                    <Text style={styles.modalLabel}>Category *</Text>
-                    <Input placeholder="Clothes, Shoes, Bags, Household, Jewelry, Cosmetics" value={form.category} onChangeText={(v: string) => setForm((f) => ({ ...f, category: v }))} />
+                        <Text style={styles.modalLabel}>Category *</Text>
+                        <Input placeholder="Clothes, Shoes, Bags, Household, Jewelry, Cosmetics" value={form.category} onChangeText={(v: string) => setForm((f) => ({ ...f, category: v }))} />
 
-                    <Text style={styles.modalLabel}>Stock Quantity</Text>
-                    <Input placeholder="e.g. 25" value={form.quantity} onChangeText={(v: string) => setForm((f) => ({ ...f, quantity: v }))} keyboardType="numeric" />
+                        <Text style={styles.modalLabel}>Stock Quantity</Text>
+                        <Input placeholder="e.g. 25" value={form.quantity} onChangeText={(v: string) => setForm((f) => ({ ...f, quantity: v }))} keyboardType="numeric" />
 
-                    <Text style={styles.modalLabel}>Description</Text>
-                    <Input placeholder="Product details, sizes, colors..." value={form.description} onChangeText={(v: string) => setForm((f) => ({ ...f, description: v }))} multiline numberOfLines={3} />
+                        <Text style={styles.modalLabel}>Description</Text>
+                        <Input placeholder="Product details, sizes, colors..." value={form.description} onChangeText={(v: string) => setForm((f) => ({ ...f, description: v }))} multiline numberOfLines={3} />
 
-                    <Text style={styles.modalLabel}>Image URL (or select from phone)</Text>
-                    <Input placeholder="https://example.com/image.jpg" value={form.imageUrl} onChangeText={(v: string) => setForm((f) => ({ ...f, imageUrl: v }))} />
+                        {/* Multiple Images Management Section */}
+                        <Text style={styles.modalLabel}>
+                            Product Images ({form.images.length})
+                        </Text>
+                        <Text style={styles.helperText}>
+                            Add multiple images so customers can swipe left/right (1/5).
+                        </Text>
 
-                    {form.imageUrl ? (
-                        <Image source={{ uri: form.imageUrl }} style={styles.previewImage} />
-                    ) : (
-                        <View style={styles.placeholderBox}>
-                            <Text style={{ color: Colors.textMuted }}>No Image Selected</Text>
+                        {/* Horizontal Image Thumbnails */}
+                        {form.images.length > 0 ? (
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbsScroll}>
+                                {form.images.map((imgUri, idx) => (
+                                    <View key={idx} style={styles.thumbPreviewCard}>
+                                        <Image source={{ uri: imgUri }} style={styles.thumbPreviewImg} />
+                                        <TouchableOpacity
+                                            style={styles.thumbDeleteBtn}
+                                            onPress={() => removeImage(idx)}
+                                            activeOpacity={0.7}
+                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                        >
+                                            <Ionicons name="close-circle" size={22} color="#EF4444" />
+                                        </TouchableOpacity>
+                                        <View style={styles.thumbIndexBadge}>
+                                            <Text style={styles.thumbIndexText}>{idx + 1}</Text>
+                                        </View>
+                                    </View>
+                                ))}
+                            </ScrollView>
+                        ) : (
+                            <View style={styles.placeholderBox}>
+                                <Ionicons name="images-outline" size={32} color={Colors.textMuted} style={{ marginBottom: 4 }} />
+                                <Text style={{ color: Colors.textMuted, fontSize: 13 }}>No images added yet</Text>
+                            </View>
+                        )}
+
+                        <Button
+                            title={uploadingImage ? "Uploading Images to Cloud..." : "📷 Pick Multiple Images from Gallery"}
+                            onPress={pickImage}
+                            loading={uploadingImage}
+                            style={{ backgroundColor: '#4B5563', marginVertical: 6 }}
+                        />
+
+                        {/* Add image URL input */}
+                        <View style={styles.urlInputRow}>
+                            <View style={{ flex: 1 }}>
+                                <Input
+                                    placeholder="Or paste image URL"
+                                    value={form.imageUrlInput}
+                                    onChangeText={(v: string) => setForm((f) => ({ ...f, imageUrlInput: v }))}
+                                />
+                            </View>
+                            <TouchableOpacity
+                                style={styles.addUrlBtn}
+                                onPress={addImageUrl}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.addUrlBtnText}>+ Add URL</Text>
+                            </TouchableOpacity>
                         </View>
-                    )}
 
-                    <Button
-                        title={uploadingImage ? "Uploading to Cloud..." : "Pick Image From Gallery"}
-                        onPress={pickImage}
-                        loading={uploadingImage}
-                        style={{ backgroundColor: '#4B5563', marginVertical: 8 }}
-                    />
-                    <Button
-                        title={saving ? 'Saving...' : 'Save Product'}
-                        onPress={handleSave}
-                        loading={saving}
-                        style={{ backgroundColor: Colors.primary, marginVertical: 8 }}
-                    />
-                    <Button
-                        title="Cancel"
-                        onPress={() => setModalVisible(false)}
-                        style={{ backgroundColor: '#EF4444', marginVertical: 8 }}
-                    />
-                </ScrollView>
+                        <Button
+                            title={saving ? 'Saving...' : `Save Product (${form.images.length} images)`}
+                            onPress={handleSave}
+                            loading={saving}
+                            style={{ backgroundColor: Colors.primary, marginTop: 14 }}
+                        />
+                        <Button
+                            title="Cancel"
+                            onPress={() => setModalVisible(false)}
+                            style={{ backgroundColor: '#EF4444', marginVertical: 8 }}
+                        />
+                    </ScrollView>
+                </SafeAreaView>
             </Modal>
         </View>
     );
@@ -295,12 +379,31 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 6,
     },
+    thumbWrapper: {
+        position: 'relative',
+        width: 64,
+        height: 64,
+    },
     thumb: {
         width: 64,
         height: 64,
         borderRadius: 8,
         resizeMode: 'cover',
         backgroundColor: Colors.border,
+    },
+    thumbBadge: {
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        backgroundColor: Colors.primary,
+        borderRadius: 10,
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+    },
+    thumbBadgeText: {
+        color: '#FFFFFF',
+        fontSize: 10,
+        fontWeight: 'bold',
     },
     noImage: {
         backgroundColor: '#F3F4F6',
@@ -328,9 +431,76 @@ const styles = StyleSheet.create({
     deleteBtnText: { color: '#fff', fontWeight: '600', fontSize: 12 },
     empty: { alignItems: 'center', marginTop: 80, paddingHorizontal: 30 },
     emptyText: { fontSize: 15, color: Colors.textMuted, textAlign: 'center' },
-    modalContainer: { padding: 20, backgroundColor: Colors.background, flexGrow: 1 },
+    modalContainer: { padding: 20, backgroundColor: Colors.background, flexGrow: 1, paddingBottom: 40 },
     modalTitle: { fontSize: 22, fontWeight: '800', color: Colors.primary, marginBottom: 16, textAlign: 'center' },
-    modalLabel: { fontSize: 13, fontWeight: '700', color: Colors.text, marginTop: 8, marginBottom: 2 },
-    previewImage: { width: '100%', height: 180, borderRadius: 10, marginVertical: 12, resizeMode: 'cover' },
-    placeholderBox: { width: '100%', height: 140, borderRadius: 10, backgroundColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center', marginVertical: 12 },
+    modalLabel: { fontSize: 13, fontWeight: '700', color: Colors.text, marginTop: 10, marginBottom: 2 },
+    helperText: { fontSize: 12, color: Colors.textMuted, marginBottom: 8 },
+    thumbsScroll: {
+        flexDirection: 'row',
+        marginVertical: 10,
+        paddingVertical: 4,
+    },
+    thumbPreviewCard: {
+        position: 'relative',
+        width: 80,
+        height: 80,
+        marginRight: 12,
+        borderRadius: 10,
+        overflow: 'hidden',
+        borderWidth: 1.5,
+        borderColor: Colors.border,
+    },
+    thumbPreviewImg: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+    thumbDeleteBtn: {
+        position: 'absolute',
+        top: 2,
+        right: 2,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+    },
+    thumbIndexBadge: {
+        position: 'absolute',
+        bottom: 2,
+        left: 2,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        paddingHorizontal: 5,
+        borderRadius: 4,
+    },
+    thumbIndexText: {
+        color: '#FFFFFF',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    placeholderBox: {
+        width: '100%',
+        height: 90,
+        borderRadius: 10,
+        backgroundColor: '#E5E7EB',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginVertical: 10,
+    },
+    urlInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginVertical: 4,
+    },
+    addUrlBtn: {
+        backgroundColor: Colors.secondary,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    addUrlBtnText: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+        fontSize: 13,
+    },
 });

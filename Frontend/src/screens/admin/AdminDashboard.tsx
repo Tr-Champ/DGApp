@@ -131,7 +131,7 @@ export default function AdminDashboard() {
                     recentOrders.map((ord) => (
                         <View key={ord.id} style={styles.orderNotification}>
                             <View style={styles.orderNotifHeader}>
-                                <Text style={styles.orderNotifId}>Order #{ord.id.slice(0, 8)}</Text>
+                                <Text style={styles.orderNotifId}>Order #{ord.id.startsWith('ORD-') ? ord.id.replace('ORD-', '') : ord.id.replace(/-/g, '').slice(0, 5).toUpperCase()}</Text>
                                 <View style={[styles.badge, { backgroundColor: ord.delivered ? Colors.success : Colors.secondary }]}>
                                     <Text style={styles.badgeText}>{ord.delivered ? 'Delivered' : 'Pending'}</Text>
                                 </View>

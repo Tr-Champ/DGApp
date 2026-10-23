@@ -24,6 +24,7 @@ export default function CustomerCart() {
                         data={cartItems}
                         renderItem={({ item }) => <CartItemRow item={item} />}
                         keyExtractor={(item) => item.product_id.toString()}
+                        contentContainerStyle={{ paddingBottom: 20 }}
                     />
                     <View style={styles.footer}>
                         <Text style={styles.total}>Total: ${totalPrice.toFixed(2)}</Text>

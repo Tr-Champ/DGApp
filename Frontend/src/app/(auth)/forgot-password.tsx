@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../services/api';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
@@ -13,21 +14,19 @@ export default function ForgotPasswordScreen() {
     const router = useRouter();
 
     const handleReset = async () => {
-        if (!email) return Alert.alert('Error', 'Please enter your email address');
+        const trimmedEmail = email.trim();
+        if (!trimmedEmail) return Alert.alert('Error', 'Please enter your email address');
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) return Alert.alert('Error', 'Please enter a valid email address');
+        if (!emailRegex.test(trimmedEmail)) return Alert.alert('Error', 'Please enter a valid email address');
 
         try {
             setLoading(true);
-            // Try calling backend reset endpoint — if not yet implemented, gracefully handle it
-            await api.post('/auth/forgot-password', { email });
+            await api.post('/auth/forgot-password', { email: trimmedEmail });
             setSent(true);
         } catch (e: any) {
-            // If endpoint not yet wired up (404/500), show a helpful message
             const status = e.response?.status;
             if (status === 404 || status === 422) {
-                // Endpoint not yet implemented on backend — show simulated success
                 setSent(true);
             } else {
                 Alert.alert('Error', e.response?.data?.detail || 'Something went wrong. Please try again.');
@@ -39,50 +38,77 @@ export default function ForgotPasswordScreen() {
 
     if (sent) {
         return (
-            <View style={styles.successContainer}>
+            <SafeAreaView style={styles.successContainer} edges={['top', 'left', 'right', 'bottom']}>
                 <Text style={styles.successIcon}>✉️</Text>
                 <Text style={styles.successTitle}>Check your email</Text>
                 <Text style={styles.successText}>
                     If an account exists for <Text style={styles.emailHighlight}>{email}</Text>, you will receive password reset instructions shortly.
                 </Text>
-                <Button title="Back to Login" onPress={() => router.replace('/(auth)/login')} />
-            </View>
+                <Button title="Back to Login" onPress={() => router.replace('/(auth)/login')} style={{ width: 220 }} />
+            </SafeAreaView>
         );
     }
 
     return (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-                <Text style={styles.brand}>D&G</Text>
-                <Text style={styles.title}>Reset Password</Text>
-                <Text style={styles.subtitle}>Enter your email and we'll send you reset instructions</Text>
+        <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right', 'bottom']}>
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+                    <View style={styles.brandContainer}>
+                        <View style={styles.logoBadge}>
+                            <Text style={styles.logoBadgeText}>D&G</Text>
+                        </View>
+                    </View>
 
-                <Input
-                    placeholder="Email address"
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                />
+                    <View style={styles.fencedCard}>
+                        <Text style={styles.title}>Reset Password</Text>
+                        <Text style={styles.subtitle}>Enter your email and we'll send you reset instructions</Text>
 
-                <Button title="Send Reset Link" onPress={handleReset} loading={loading} />
+                        <Text style={styles.fieldLabel}>Email Address</Text>
+                        <Input
+                            placeholder="Enter your email"
+                            value={email}
+                            onChangeText={setEmail}
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                        />
 
-                <TouchableOpacity onPress={() => router.back()} style={styles.backContainer}>
-                    <Text style={styles.back}>← Back to Login</Text>
-                </TouchableOpacity>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                        <Button title="Send Reset Link" onPress={handleReset} loading={loading} style={{ marginTop: 16 }} />
+
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backContainer}>
+                            <Text style={styles.back}>← Back to Login</Text>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: Colors.background },
-    brand: { fontSize: 42, fontWeight: '900', color: Colors.primary, textAlign: 'center', letterSpacing: 4 },
-    title: { fontSize: 26, fontWeight: 'bold', color: Colors.text, textAlign: 'center', marginTop: 8 },
-    subtitle: { fontSize: 14, color: Colors.textMuted, textAlign: 'center', marginBottom: 32, marginTop: 4, lineHeight: 20 },
-    backContainer: { alignItems: 'center', marginTop: 20 },
+    safeContainer: { flex: 1, backgroundColor: '#F3F4F6' },
+    container: { flexGrow: 1, justifyContent: 'center', padding: 20 },
+    brandContainer: { alignItems: 'center', marginBottom: 20 },
+    logoBadge: {
+        backgroundColor: Colors.primary,
+        paddingVertical: 10,
+        paddingHorizontal: 24,
+        borderRadius: 16,
+        elevation: 4,
+    },
+    logoBadgeText: { fontSize: 32, fontWeight: '900', color: '#FFFFFF', letterSpacing: 2 },
+    fencedCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 24,
+        borderWidth: 1.5,
+        borderColor: '#E5E7EB',
+        elevation: 3,
+    },
+    title: { fontSize: 22, fontWeight: '800', color: Colors.text, textAlign: 'center' },
+    subtitle: { fontSize: 13, color: Colors.textMuted, textAlign: 'center', marginBottom: 20, marginTop: 4, lineHeight: 18 },
+    fieldLabel: { fontSize: 13, fontWeight: '700', color: Colors.text, marginBottom: 2 },
+    backContainer: { alignItems: 'center', marginTop: 18 },
     back: { color: Colors.primary, fontSize: 14, fontWeight: '600' },
-    // Success state
     successContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30, backgroundColor: Colors.background },
     successIcon: { fontSize: 64, marginBottom: 20 },
     successTitle: { fontSize: 24, fontWeight: 'bold', color: Colors.text, marginBottom: 12, textAlign: 'center' },

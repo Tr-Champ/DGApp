@@ -166,7 +166,7 @@ export default function AdminReports() {
                     orders.map((ord) => (
                         <View key={ord.id} style={styles.txRow}>
                             <View style={styles.txLeft}>
-                                <Text style={styles.txId}>TX #{ord.id.slice(0, 8)}</Text>
+                                <Text style={styles.txId}>TX #{ord.id.startsWith('ORD-') ? ord.id.replace('ORD-', '') : ord.id.replace(/-/g, '').slice(0, 5).toUpperCase()}</Text>
                                 <Text style={styles.txMeta}>
                                     {Array.isArray(ord.items) ? ord.items.length : 0} items · {ord.created_at ? new Date(ord.created_at).toLocaleDateString() : 'Recent'}
                                 </Text>

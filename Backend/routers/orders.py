@@ -28,9 +28,15 @@ def get_admin_orders(db: Session = Depends(get_db), current_user: User = Depends
 
 @router.patch("/{order_id}/deliver", response_model=OrderResponse)
 def deliver_order(order_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can mark orders as delivered.")
-    order = mark_order_delivered(db, order_id=order_id)
+    order = mark_order_delivered(
+        db,
+        order_id=order_id,
+        user_id=current_user.id,
+        is_admin=current_user.is_admin
+    )
     if not order:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found or you are not authorized to update this order."
+        )
     return order

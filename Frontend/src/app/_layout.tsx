@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { CartProvider } from '../context/CartContext';
 import { View, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { Colors } from '../constants/Colors';
 
-const SPLASH_DURATION = 3000;
+const SPLASH_DURATION = 4000;
 
 function SplashScreen() {
     return (
@@ -54,16 +56,23 @@ function RootLayoutNav() {
         );
     }
 
-    return <Slot />;
+    return (
+        <>
+            <StatusBar style="light" />
+            <Slot />
+        </>
+    );
 }
 
 export default function RootLayout() {
     return (
-        <AuthProvider>
-            <CartProvider>
-                <RootLayoutNav />
-            </CartProvider>
-        </AuthProvider>
+        <SafeAreaProvider>
+            <AuthProvider>
+                <CartProvider>
+                    <RootLayoutNav />
+                </CartProvider>
+            </AuthProvider>
+        </SafeAreaProvider>
     );
 }
 
