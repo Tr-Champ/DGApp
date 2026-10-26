@@ -5,10 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 import { DevIcon } from '../../components/DevInfoModal';
 
 export default function TabLayout() {
     const { user } = useAuth();
+    const { cartCount } = useCart();
     const isAdmin = user?.role === 'admin' || user?.is_admin === true;
     const insets = useSafeAreaInsets();
 
@@ -84,6 +86,13 @@ export default function TabLayout() {
                 name="tab3"
                 options={{
                     title: isAdmin ? 'Deliveries' : 'Cart',
+                    tabBarBadge: !isAdmin && cartCount > 0 ? cartCount : undefined,
+                    tabBarBadgeStyle: {
+                        backgroundColor: '#EF4444',
+                        color: '#FFFFFF',
+                        fontSize: 10,
+                        fontWeight: '700',
+                    },
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons
                             name={isAdmin ? 'checkmark-done-circle-outline' : 'cart-outline'}

@@ -1,6 +1,16 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import {
+    getStoredDeviceToken,
+    saveDeviceToken,
+    clearStoredDeviceToken,
+    generateDeviceToken,
+    promptDeviceAuthentication,
+    cacheOfflineSession,
+    getCachedOfflineSession,
+    clearOfflineSession,
+} from '../services/deviceAuthService';
 
 export interface AuthUser {
     id: string;
@@ -12,11 +22,17 @@ export interface AuthUser {
 interface AuthContextType {
     token: string | null;
     user: AuthUser | null;
+    deviceToken: string | null;
     isLoading: boolean;
-    login: (email: string, pass: string) => Promise<void>;
-    register: (email: string, pass: string) => Promise<void>;
+    loginWithDevice: () => Promise<void>;
+    registerWithDevice: (email: string) => Promise<void>;
+    rebindDeviceWithLock: (email: string) => Promise<void>;
     logout: () => Promise<void>;
-    deleteAccount: (email: string, password: string) => Promise<void>;
+    deleteAccountWithLock: () => Promise<void>;
+    // Backward compatibility helpers
+    login: (email?: string, pass?: string) => Promise<void>;
+    register: (email?: string, pass?: string) => Promise<void>;
+    deleteAccount: (email?: string, password?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -24,34 +40,52 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [token, setToken] = useState<string | null>(null);
     const [user, setUser] = useState<AuthUser | null>(null);
+    const [deviceToken, setDeviceToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    const logout = useCallback(async () => {
-        await AsyncStorage.removeItem('user_token');
-        setToken(null);
-        setUser(null);
-    }, []);
-
     const normalizeUser = (data: any): AuthUser => {
-        const isAdmin = Boolean(data.is_admin || data.role === 'admin');
+        const isAdmin = Boolean(data.is_admin || data.role === 'admin' || data.isAdmin);
         return {
-            id: String(data.id || ''),
+            id: String(data.id || data.userId || ''),
             email: data.email || '',
             is_admin: isAdmin,
             role: isAdmin ? 'admin' : 'user',
         };
     };
 
+    const logout = useCallback(async () => {
+        await AsyncStorage.removeItem('user_token');
+        await clearOfflineSession();
+        setToken(null);
+        setUser(null);
+    }, []);
+
     const loadStoredAuth = useCallback(async () => {
         try {
+            const storedDevToken = await getStoredDeviceToken();
+            setDeviceToken(storedDevToken);
+
             const storedToken = await AsyncStorage.getItem('user_token');
             if (storedToken) {
-                const res = await api.get('/users/me');
-                setToken(storedToken);
-                setUser(normalizeUser(res.data));
+                try {
+                    const res = await api.get('/users/me');
+                    setToken(storedToken);
+                    const normUser = normalizeUser(res.data);
+                    setUser(normUser);
+                    await cacheOfflineSession(storedToken, normUser);
+                } catch (netErr: any) {
+                    // Offline fallback: load cached session if server is unreachable
+                    const cached = await getCachedOfflineSession();
+                    if (cached && cached.token === storedToken) {
+                        setToken(cached.token);
+                        setUser(normalizeUser(cached.user));
+                    } else if (netErr?.response?.status === 401) {
+                        await logout();
+                    }
+                }
             }
         } catch (e) {
-            console.error(e);
+            console.error('[AuthContext] Load stored auth error:', e);
             await logout();
         } finally {
             setIsLoading(false);
@@ -62,58 +96,192 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         void loadStoredAuth();
     }, [loadStoredAuth]);
 
-    const login = async (email: string, pass: string) => {
-        const res = await api.post<{ access_token: string }>('/auth/login', { email, password: pass });
-        const accessToken = res.data.access_token;
-        if (!accessToken) {
-            throw new Error('The server did not return an access token.');
+    /**
+     * B. Login / Launch Flow (/login)
+     * Automatically prompts phone lock (PIN/Pattern/Biometrics).
+     * On success, retrieves device_token and calls POST /api/auth/login.
+     */
+    const loginWithDevice = async () => {
+        const storedToken = await getStoredDeviceToken();
+        if (!storedToken) {
+            throw new Error('NO_DEVICE_TOKEN');
         }
 
-        await AsyncStorage.setItem('user_token', accessToken);
+        // OS Phone Lock Prompt
+        const authResult = await promptDeviceAuthentication('Confirm your phone lock to sign in');
+        if (!authResult.success) {
+            throw new Error(authResult.error || 'Phone lock authentication cancelled or failed.');
+        }
+
         try {
-            const userRes = await api.get('/users/me');
+            const res = await api.post('/auth/login', { device_token: storedToken });
+            const accessToken = res.data.token || res.data.access_token;
+            if (!accessToken) {
+                throw new Error('Server did not return an access token.');
+            }
+
+            await AsyncStorage.setItem('user_token', accessToken);
             setToken(accessToken);
-            setUser(normalizeUser(userRes.data));
-        } catch (error) {
-            await AsyncStorage.removeItem('user_token');
+
+            let userData = res.data.user;
+            if (!userData) {
+                const userRes = await api.get('/users/me');
+                userData = userRes.data;
+            }
+
+            const normUser = normalizeUser(userData);
+            setUser(normUser);
+            await cacheOfflineSession(accessToken, normUser);
+            setDeviceToken(storedToken);
+        } catch (error: any) {
+            // Check for offline capability
+            if (!error.response) {
+                const cached = await getCachedOfflineSession();
+                if (cached) {
+                    setToken(cached.token);
+                    setUser(normalizeUser(cached.user));
+                    return;
+                }
+            }
             throw error;
         }
     };
 
-    const register = async (email: string, pass: string) => {
-        await api.post('/auth/register', { email, password: pass });
-        await login(email, pass);
+    /**
+     * A. Registration Screen (/register)
+     * Prompts phone lock confirmation.
+     * On success, generates a cryptographically secure random UUID (device_token),
+     * saves it locally in hardware-encrypted SecureStore,
+     * and sends { email, device_token, is_admin: false } to POST /api/auth/register.
+     */
+    const registerWithDevice = async (email: string) => {
+        const cleanEmail = email.trim().toLowerCase();
+        if (!cleanEmail) {
+            throw new Error('Please enter a valid email address.');
+        }
+
+        // OS Phone Lock Prompt
+        const authResult = await promptDeviceAuthentication('Confirm phone lock to create account');
+        if (!authResult.success) {
+            throw new Error(authResult.error || 'Phone lock authentication was cancelled.');
+        }
+
+        // Generate cryptographically secure UUID
+        const newDeviceToken = generateDeviceToken();
+
+        const res = await api.post('/auth/register', {
+            email: cleanEmail,
+            device_token: newDeviceToken,
+            is_admin: false,
+        });
+
+        // Save device token in hardware SecureStore
+        await saveDeviceToken(newDeviceToken);
+        setDeviceToken(newDeviceToken);
+
+        const accessToken = res.data.token || res.data.access_token;
+        if (accessToken) {
+            await AsyncStorage.setItem('user_token', accessToken);
+            setToken(accessToken);
+
+            let userData = res.data.user;
+            if (!userData) {
+                try {
+                    const userRes = await api.get('/users/me');
+                    userData = userRes.data;
+                } catch {
+                    userData = { email: cleanEmail, is_admin: false };
+                }
+            }
+
+            const normUser = normalizeUser(userData);
+            setUser(normUser);
+            await cacheOfflineSession(accessToken, normUser);
+        }
     };
 
     /**
-     * Delete the current user's account.
-     * Validates credentials first, then deletes all data from the backend,
-     * then clears local auth state.
+     * Device Recovery / Replacement: Rebind Device
+     * Prompts phone lock, generates new device_token, and calls POST /api/auth/rebind-device.
      */
-    const deleteAccount = async (email: string, password: string) => {
-        // Validate credentials first by logging in again
+    const rebindDeviceWithLock = async (email: string) => {
+        const cleanEmail = email.trim().toLowerCase();
+        if (!cleanEmail) {
+            throw new Error('Please enter your registered email address.');
+        }
+
+        const authResult = await promptDeviceAuthentication('Confirm phone lock to link this device');
+        if (!authResult.success) {
+            throw new Error(authResult.error || 'Phone lock authentication was cancelled.');
+        }
+
+        const newDeviceToken = generateDeviceToken();
+
+        const res = await api.post('/auth/rebind-device', {
+            email: cleanEmail,
+            new_device_token: newDeviceToken,
+        });
+
+        await saveDeviceToken(newDeviceToken);
+        setDeviceToken(newDeviceToken);
+
+        const accessToken = res.data.token || res.data.access_token;
+        if (accessToken) {
+            await AsyncStorage.setItem('user_token', accessToken);
+            setToken(accessToken);
+
+            let userData = res.data.user;
+            if (!userData) {
+                const userRes = await api.get('/users/me');
+                userData = userRes.data;
+            }
+
+            const normUser = normalizeUser(userData);
+            setUser(normUser);
+            await cacheOfflineSession(accessToken, normUser);
+        }
+    };
+
+    /**
+     * Delete Account: Uses phone lock instead of password!
+     */
+    const deleteAccountWithLock = async () => {
         if (!user) throw new Error('Not authenticated');
-        if (email.trim().toLowerCase() !== user.email.toLowerCase()) {
-            throw new Error('Email does not match your account email.');
+
+        const authResult = await promptDeviceAuthentication(
+            'Confirm phone lock to permanently delete your account'
+        );
+        if (!authResult.success) {
+            throw new Error(authResult.error || 'Phone lock confirmation required to delete account.');
         }
 
-        // Re-authenticate to confirm password
-        await api.post('/auth/login', { email: email.trim(), password });
-
-        // Delete all user data from backend
-        // Try dedicated delete endpoint; fall back to users/me DELETE
         try {
-            await api.delete(`/users/${user.id}`);
-        } catch {
             await api.delete('/users/me');
+        } catch {
+            await api.delete(`/users/${user.id}`);
         }
 
-        // Clear local auth state
+        await clearStoredDeviceToken();
         await logout();
     };
 
     return (
-        <AuthContext.Provider value={{ token, user, isLoading, login, register, logout, deleteAccount }}>
+        <AuthContext.Provider
+            value={{
+                token,
+                user,
+                deviceToken,
+                isLoading,
+                loginWithDevice,
+                registerWithDevice,
+                rebindDeviceWithLock,
+                logout,
+                deleteAccountWithLock,
+                login: loginWithDevice,
+                register: (e?: string) => registerWithDevice(e || ''),
+                deleteAccount: deleteAccountWithLock,
+            }}
+        >
             {children}
         </AuthContext.Provider>
     );

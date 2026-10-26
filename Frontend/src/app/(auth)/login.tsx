@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -9,37 +9,94 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    ActivityIndicator,
 } from 'react-native';
-
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useDeviceAuth } from '../../hooks/useDeviceAuth';
+import FenceLineFrame from '../../components/FenceLineFrame';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import { Colors } from '../../constants/Colors';
 import { getApiErrorMessage } from '../../services/api';
 
 export default function LoginScreen() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const { login } = useAuth();
     const router = useRouter();
+    const { loginWithDevice, rebindDeviceWithLock, deviceToken } = useAuth();
+    const { security, refreshSecurity } = useDeviceAuth();
 
-    const handleLogin = async () => {
-        const trimmedEmail = email.trim();
-        if (!trimmedEmail || !password) {
-            return Alert.alert('Missing Fields', 'Please enter both email and password.');
+    const [isRebindMode, setIsRebindMode] = useState(false);
+    const [rebindEmail, setRebindEmail] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [hasAttemptedAutoPrompt, setHasAttemptedAutoPrompt] = useState(false);
+
+    // Primary action: Authenticate with current active phone lock (Biometrics / PIN / Pattern)
+    const handleDeviceUnlock = useCallback(async () => {
+        try {
+            setLoading(true);
+            await loginWithDevice();
+            router.replace('/(tabs)/tab1');
+        } catch (error: any) {
+            if (error?.message === 'NO_DEVICE_TOKEN') {
+                // Device not yet registered or storage cleared
+                setIsRebindMode(true);
+                Alert.alert(
+                    'No Linked Account',
+                    'This device is not yet linked. Enter your email to claim/rebind this phone, or tap Register below.'
+                );
+            } else {
+                Alert.alert(
+                    'Authentication',
+                    getApiErrorMessage(error, error?.message || 'Device authentication could not be completed.')
+                );
+            }
+        } finally {
+            setLoading(false);
+        }
+    }, [loginWithDevice, router]);
+
+    // Auto-prompt device lock on initial screen launch if device is already registered
+    useEffect(() => {
+        let isMounted = true;
+        const autoPrompt = async () => {
+            if (!hasAttemptedAutoPrompt && deviceToken) {
+                setHasAttemptedAutoPrompt(true);
+                // Wait slightly for UI mount transition
+                setTimeout(() => {
+                    if (isMounted) {
+                        void handleDeviceUnlock();
+                    }
+                }, 400);
+            }
+        };
+        void autoPrompt();
+        return () => {
+            isMounted = false;
+        };
+    }, [deviceToken, hasAttemptedAutoPrompt, handleDeviceUnlock]);
+
+    // Handle account rebind for new phone or cleared cache
+    const handleRebind = async () => {
+        const cleanEmail = rebindEmail.trim();
+        if (!cleanEmail) {
+            return Alert.alert('Email Required', 'Please enter your registered account email.');
         }
 
         try {
             setLoading(true);
-            await login(trimmedEmail, password);
-            router.replace('/(tabs)/tab1');
-        } catch (error: unknown) {
+            await rebindDeviceWithLock(cleanEmail);
+            Alert.alert('Device Linked', 'Your account was successfully linked to this phone.', [
+                {
+                    text: 'Continue',
+                    onPress: () => router.replace('/(tabs)/tab1'),
+                },
+            ]);
+        } catch (error: any) {
             Alert.alert(
-                'Login Failed',
-                getApiErrorMessage(error, 'Invalid email or password. Please try again.')
+                'Linking Failed',
+                getApiErrorMessage(error, error?.message || 'Could not link this device to the specified email.')
             );
         } finally {
             setLoading(false);
@@ -47,88 +104,145 @@ export default function LoginScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right', 'bottom']}>
-            <KeyboardAvoidingView
-                style={styles.keyboardContainer}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
-                <ScrollView
-                    contentContainerStyle={styles.scrollContainer}
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}
+        <FenceLineFrame color={Colors.primary}>
+            <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right', 'bottom']}>
+                <KeyboardAvoidingView
+                    style={styles.keyboardContainer}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 >
-                    {/* Branding Header */}
-                    <View style={styles.brandContainer}>
-                        <Image
-                            source={require('../../../assets/DGLoGo.jpg')}
-                            style={styles.logoImage}
-                            resizeMode="contain"
-                        />
-                        <Text style={styles.brandSub}>E-Commerce App</Text>
-                    </View>
+                    <ScrollView
+                        contentContainerStyle={styles.scrollContainer}
+                        keyboardShouldPersistTaps="handled"
+                        showsVerticalScrollIndicator={false}
+                    >
+                        {/* Header Security Status Badge */}
+                        <View style={styles.securityHeader}>
+                            <View style={styles.securityBadge}>
+                                <Ionicons name="shield-checkmark" size={14} color="#10B981" />
+                                <Text style={styles.securityBadgeText}>HARDWARE-ENCRYPTED LOCK</Text>
+                            </View>
+                        </View>
 
+                        {/* Branding Header */}
+                        <View style={styles.brandContainer}>
+                            <Image
+                                source={require('../../../assets/DGLoGo.jpg')}
+                                style={styles.logoImage}
+                                resizeMode="contain"
+                            />
+                            <Text style={styles.brandTitle}>D&G E-COMMERCE</Text>
+                            <Text style={styles.brandSub}>Device Lock Authentication</Text>
+                        </View>
 
-                    {/* Fenced Card Container */}
-                    <View style={styles.fencedCard}>
-                        <Text style={styles.cardTitle}>Welcome Back</Text>
-                        <Text style={styles.cardSubtitle}>Sign in to access your account</Text>
+                        {/* Main Vault Auth Card */}
+                        <View style={styles.vaultCard}>
+                            {/* Inner fence line accents on card */}
+                            <View style={styles.cardFenceTop} />
 
-                        <Text style={styles.fieldLabel}>Email Address</Text>
-                        <Input
-                            placeholder="e.g. user@example.com"
-                            value={email}
-                            onChangeText={setEmail}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                            keyboardType="email-address"
-                        />
+                            {!isRebindMode ? (
+                                <>
+                                    {/* Normal Login: Pure Phone Lock */}
+                                    <View style={styles.biometricCircleOuter}>
+                                        <View style={styles.biometricCircleInner}>
+                                            <Ionicons name="finger-print" size={54} color={Colors.primary} />
+                                        </View>
+                                    </View>
 
-                        <Text style={styles.fieldLabel}>Password</Text>
-                        <Input
-                            placeholder="Enter your password"
-                            value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry
-                        />
+                                    <Text style={styles.cardTitle}>Unlock with Phone Lock</Text>
+                                    <Text style={styles.cardSubtitle}>
+                                        Touch sensor, use Face ID, or enter your device PIN/Pattern
+                                    </Text>
 
-                        <TouchableOpacity
-                            onPress={() => router.push('/(auth)/forgot-password')}
-                            style={styles.forgotContainer}
-                            activeOpacity={0.7}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                            <Text style={styles.forgotText}>Forgot password?</Text>
-                        </TouchableOpacity>
+                                    {security.warningMessage && (
+                                        <View style={styles.warningBox}>
+                                            <Ionicons name="alert-circle" size={16} color="#DC2626" />
+                                            <Text style={styles.warningText}>{security.warningMessage}</Text>
+                                        </View>
+                                    )}
 
-                        <Button
-                            title="Sign In"
-                            onPress={handleLogin}
-                            loading={loading}
-                            style={styles.loginBtn}
-                        />
-                    </View>
+                                    <Button
+                                        title={loading ? 'Verifying Lock...' : 'Unlock Account'}
+                                        onPress={handleDeviceUnlock}
+                                        loading={loading}
+                                        style={styles.unlockBtn}
+                                    />
 
-                    {/* Footer Switch */}
-                    <View style={styles.footerContainer}>
-                        <Text style={styles.footerText}>Don't have an account? </Text>
-                        <TouchableOpacity
-                            onPress={() => router.push('/(auth)/register')}
-                            activeOpacity={0.7}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                            <Text style={styles.footerLink}>Register</Text>
-                        </TouchableOpacity>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                                    {/* Switch to Rebind / New Phone Mode */}
+                                    <TouchableOpacity
+                                        style={styles.switchModeContainer}
+                                        onPress={() => setIsRebindMode(true)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons name="phone-portrait-outline" size={16} color={Colors.primary} />
+                                        <Text style={styles.switchModeText}>New Phone or Re-link Account?</Text>
+                                    </TouchableOpacity>
+                                </>
+                            ) : (
+                                <>
+                                    {/* Rebind / Recovery Flow for New Phones */}
+                                    <View style={styles.rebindIconContainer}>
+                                        <Ionicons name="swap-horizontal" size={32} color={Colors.primary} />
+                                    </View>
+
+                                    <Text style={styles.cardTitle}>Claim / Rebind Device</Text>
+                                    <Text style={styles.cardSubtitle}>
+                                        Link your existing account to this phone using your active screen lock
+                                    </Text>
+
+                                    <Text style={styles.fieldLabel}>Account Email</Text>
+                                    <Input
+                                        placeholder="e.g. name@example.com"
+                                        value={rebindEmail}
+                                        onChangeText={setRebindEmail}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        keyboardType="email-address"
+                                    />
+
+                                    <Button
+                                        title={loading ? 'Confirming Lock...' : 'Verify Phone Lock & Link'}
+                                        onPress={handleRebind}
+                                        loading={loading}
+                                        style={styles.unlockBtn}
+                                    />
+
+                                    <TouchableOpacity
+                                        style={styles.switchModeContainer}
+                                        onPress={() => setIsRebindMode(false)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons name="arrow-back" size={16} color={Colors.textMuted} />
+                                        <Text style={[styles.switchModeText, { color: Colors.textMuted }]}>
+                                            Back to Standard Unlock
+                                        </Text>
+                                    </TouchableOpacity>
+                                </>
+                            )}
+
+                            <View style={styles.cardFenceBottom} />
+                        </View>
+
+                        {/* Footer Switch to Register */}
+                        <View style={styles.footerContainer}>
+                            <Text style={styles.footerText}>New to D&G? </Text>
+                            <TouchableOpacity
+                                onPress={() => router.push('/(auth)/register')}
+                                activeOpacity={0.7}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                <Text style={styles.footerLink}>Register New Device</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
+        </FenceLineFrame>
     );
 }
 
 const styles = StyleSheet.create({
     safeContainer: {
         flex: 1,
-        backgroundColor: '#F3F4F6',
     },
     keyboardContainer: {
         flex: 1,
@@ -136,79 +250,185 @@ const styles = StyleSheet.create({
     scrollContainer: {
         flexGrow: 1,
         justifyContent: 'center',
-        paddingHorizontal: 20,
+        paddingHorizontal: 22,
         paddingVertical: 24,
+    },
+    securityHeader: {
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    securityBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#ECFDF5',
+        paddingVertical: 4,
+        paddingHorizontal: 12,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#A7F3D0',
+        gap: 6,
+    },
+    securityBadgeText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#065F46',
+        letterSpacing: 1.2,
     },
     brandContainer: {
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: 20,
     },
     logoImage: {
-        width: 100,
-        height: 100,
+        width: 88,
+        height: 88,
         borderRadius: 22,
-        marginBottom: 8,
+        marginBottom: 10,
         shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.25,
-        shadowRadius: 8,
+        shadowRadius: 10,
         elevation: 6,
     },
+    brandTitle: {
+        fontSize: 20,
+        fontWeight: '900',
+        color: '#0F172A',
+        letterSpacing: 1.5,
+    },
     brandSub: {
-
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '600',
-        color: Colors.textMuted,
-        marginTop: 8,
-        letterSpacing: 1,
+        color: '#64748B',
+        marginTop: 3,
+        letterSpacing: 0.8,
         textTransform: 'uppercase',
     },
-    fencedCard: {
+    vaultCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 24,
+        borderRadius: 24,
+        paddingVertical: 28,
+        paddingHorizontal: 24,
         borderWidth: 1.5,
-        borderColor: '#E5E7EB',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.08,
-        shadowRadius: 14,
-        elevation: 4,
+        borderColor: '#E2E8F0',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 6,
+        position: 'relative',
+        overflow: 'hidden',
+    },
+    cardFenceTop: {
+        position: 'absolute',
+        top: 0,
+        left: 20,
+        right: 20,
+        height: 3,
+        backgroundColor: Colors.primary,
+        borderRadius: 2,
+    },
+    cardFenceBottom: {
+        position: 'absolute',
+        bottom: 0,
+        left: 20,
+        right: 20,
+        height: 3,
+        backgroundColor: '#CBD5E1',
+        borderRadius: 2,
+    },
+    biometricCircleOuter: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: '#EFF6FF',
+        borderWidth: 2,
+        borderColor: '#BFDBFE',
+        justifyContent: 'center',
+        alignItems: 'center',
+        alignSelf: 'center',
+        marginBottom: 18,
+    },
+    biometricCircleInner: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#DBEAFE',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    rebindIconContainer: {
+        width: 68,
+        height: 68,
+        borderRadius: 34,
+        backgroundColor: '#EFF6FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        alignSelf: 'center',
+        marginBottom: 16,
+        borderWidth: 1.5,
+        borderColor: '#BFDBFE',
     },
     cardTitle: {
         fontSize: 22,
         fontWeight: '800',
-        color: Colors.text,
+        color: '#0F172A',
         textAlign: 'center',
     },
     cardSubtitle: {
         fontSize: 13,
-        color: Colors.textMuted,
+        color: '#64748B',
         textAlign: 'center',
-        marginTop: 4,
+        marginTop: 6,
         marginBottom: 20,
+        lineHeight: 18,
+        paddingHorizontal: 8,
     },
     fieldLabel: {
         fontSize: 13,
         fontWeight: '700',
-        color: Colors.text,
+        color: '#334155',
+        marginTop: 4,
+        marginBottom: 4,
+    },
+    warningBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FEF2F2',
+        borderWidth: 1,
+        borderColor: '#FECACA',
+        padding: 10,
+        borderRadius: 10,
+        marginBottom: 16,
+        gap: 8,
+    },
+    warningText: {
+        fontSize: 12,
+        color: '#B91C1C',
+        flex: 1,
+        lineHeight: 16,
+    },
+    unlockBtn: {
+        borderRadius: 14,
         marginTop: 8,
-        marginBottom: 2,
-    },
-    forgotContainer: {
-        alignSelf: 'flex-end',
-        marginTop: 6,
-        marginBottom: 14,
-    },
-    forgotText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: Colors.primary,
-    },
-    loginBtn: {
-        borderRadius: 12,
-        marginTop: 6,
         paddingVertical: 14,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    switchModeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 18,
+        gap: 6,
+        paddingVertical: 4,
+    },
+    switchModeText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: Colors.primary,
     },
     footerContainer: {
         flexDirection: 'row',
@@ -218,11 +438,11 @@ const styles = StyleSheet.create({
     },
     footerText: {
         fontSize: 14,
-        color: Colors.textMuted,
+        color: '#64748B',
     },
     footerLink: {
         fontSize: 14,
-        fontWeight: '700',
+        fontWeight: '800',
         color: Colors.primary,
     },
 });

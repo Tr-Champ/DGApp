@@ -17,14 +17,12 @@ const LANGUAGES: { code: Language; label: string; flag: string }[] = [
 ];
 
 export default function ProfileScreen() {
-    const { user, logout, deleteAccount } = useAuth();
+    const { user, logout, deleteAccountWithLock } = useAuth();
     const { lang, t, setLang } = useLanguage();
 
     // Delete account modal state
     const [deleteModalVisible, setDeleteModalVisible] = useState(false);
     const [deleteEmail, setDeleteEmail] = useState('');
-    const [deletePassword, setDeletePassword] = useState('');
-    const [deletePasswordVisible, setDeletePasswordVisible] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleLogout = async () => {
@@ -44,7 +42,6 @@ export default function ProfileScreen() {
 
     const openDeleteModal = () => {
         setDeleteEmail('');
-        setDeletePassword('');
         setDeleteModalVisible(true);
     };
 
@@ -52,8 +49,8 @@ export default function ProfileScreen() {
         if (!deleteEmail.trim()) {
             return Alert.alert(t.error, t.enterEmailToConfirm);
         }
-        if (!deletePassword.trim()) {
-            return Alert.alert(t.error, t.enterPasswordToConfirm);
+        if (deleteEmail.trim().toLowerCase() !== user?.email.toLowerCase()) {
+            return Alert.alert(t.error, 'Email does not match your current account email.');
         }
 
         Alert.alert(
@@ -67,7 +64,7 @@ export default function ProfileScreen() {
                     onPress: async () => {
                         try {
                             setIsDeleting(true);
-                            await deleteAccount(deleteEmail.trim(), deletePassword);
+                            await deleteAccountWithLock();
                             setDeleteModalVisible(false);
                             Alert.alert(t.accountDeleted, t.accountDeletedMsg);
                         } catch (e: any) {
@@ -211,27 +208,11 @@ export default function ProfileScreen() {
                             editable={!isDeleting}
                         />
 
-                        <Text style={styles.inputLabel}>{t.passwordLabel}</Text>
-                        <View style={styles.passwordRow}>
-                            <TextInput
-                                style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                                value={deletePassword}
-                                onChangeText={setDeletePassword}
-                                placeholder={t.enterPasswordToConfirm}
-                                placeholderTextColor={Colors.textMuted}
-                                secureTextEntry={!deletePasswordVisible}
-                                editable={!isDeleting}
-                            />
-                            <TouchableOpacity
-                                style={styles.eyeToggle}
-                                onPress={() => setDeletePasswordVisible((v) => !v)}
-                            >
-                                <Ionicons
-                                    name={deletePasswordVisible ? 'eye-off-outline' : 'eye-outline'}
-                                    size={22}
-                                    color={Colors.textMuted}
-                                />
-                            </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', padding: 12, borderRadius: 10, marginTop: 12, marginBottom: 16, gap: 10, borderWidth: 1, borderColor: '#BFDBFE' }}>
+                            <Ionicons name="finger-print" size={22} color={Colors.primary} />
+                            <Text style={{ fontSize: 13, color: '#1E40AF', flex: 1, lineHeight: 18 }}>
+                                Confirming will trigger your Phone Lock (Biometric / PIN) to securely verify your identity.
+                            </Text>
                         </View>
 
                         <View style={styles.modalActions}>

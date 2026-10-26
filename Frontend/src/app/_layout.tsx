@@ -7,6 +7,7 @@ import { CartProvider } from '../context/CartContext';
 import { LanguageProvider } from '../context/LanguageContext';
 import { View, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { Colors } from '../constants/Colors';
+import OfflineNotice from '../components/OfflineNotice';
 
 const SPLASH_DURATION = 4000;
 
@@ -60,6 +61,7 @@ function RootLayoutNav() {
     return (
         <>
             <StatusBar style="light" />
+            <OfflineNotice />
             <Slot />
         </>
     );

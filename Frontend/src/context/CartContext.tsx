@@ -1,10 +1,11 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
 import api from '../services/api';
 import { useAuth } from './AuthContext';
 
 interface CartContextType {
     cartItems: any[];
     totalPrice: number;
+    cartCount: number;
     fetchCart: () => Promise<void>;
     addToCart: (product: any, quantity?: number) => Promise<void>;
     updateQuantity: (product_id: any, quantity: number) => Promise<void>;
@@ -25,6 +26,10 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             setTotalPrice(0);
         }
     }, [token]);
+
+    const cartCount = useMemo(() => {
+        return cartItems.reduce((acc, item) => acc + (Number(item.quantity) || 1), 0);
+    }, [cartItems]);
 
     const fetchCart = async () => {
         try {
@@ -80,13 +85,17 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const clearCart = async () => {
-        await api.delete('/carts/');
+        try {
+            await api.delete('/carts/');
+        } catch (e) {
+            console.error(e);
+        }
         setCartItems([]);
         setTotalPrice(0);
     };
 
     return (
-        <CartContext.Provider value={{ cartItems, totalPrice, fetchCart, addToCart, updateQuantity, clearCart }}>
+        <CartContext.Provider value={{ cartItems, totalPrice, cartCount, fetchCart, addToCart, updateQuantity, clearCart }}>
             {children}
         </CartContext.Provider>
     );

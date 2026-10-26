@@ -1,21 +1,34 @@
+from typing import Optional, Any
 from pydantic import BaseModel, EmailStr
-from pydantic import ConfigDict
 
-class UserCreate(BaseModel):
+class DeviceRegisterRequest(BaseModel):
     email: EmailStr
-    password: str
+    device_token: str
+    is_admin: Optional[bool] = False
 
-class UserLogin(BaseModel):
+class DeviceLoginRequest(BaseModel):
+    device_token: str
+
+class DeviceRebindRequest(BaseModel):
     email: EmailStr
-    password: str
+    new_device_token: str
 
 class UserResponse(BaseModel):
-    model_config = {"from_attributes": True}
-
-    id: str
+    id: Any
     email: str
     is_admin: bool
 
+    class Config:
+        from_attributes = True
+
+class AuthResponse(BaseModel):
+    success: bool = True
+    token: str
+    access_token: Optional[str] = None
+    token_type: str = "bearer"
+    user: Optional[UserResponse] = None
+    message: Optional[str] = None
+
 class Token(BaseModel):
     access_token: str
-    token_type: str
+    token_type: str = "bearer"

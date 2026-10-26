@@ -4,9 +4,14 @@
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    is_admin BOOLEAN DEFAULT FALSE
+    device_token TEXT UNIQUE NOT NULL,
+    is_admin BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_device_token ON users(device_token);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- ==========================================================
 -- 2. PRODUCTS TABLE
@@ -57,11 +62,11 @@ CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 -- ==========================================================
 
 -- Insert sample user
-INSERT INTO users (id, email, password_hash, is_admin)
+INSERT INTO users (id, email, device_token, is_admin)
 VALUES (
     1,
     'john@gmail.com',
-    '$2b$10$h3QxYx.....',
+    'sample-device-token-uuid-12345',
     FALSE
 ) ON CONFLICT (id) DO NOTHING;
 

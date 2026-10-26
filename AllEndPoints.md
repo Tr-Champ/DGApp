@@ -4,7 +4,7 @@
 # ==========================================================
 
 # ..........................................................
-# API 1: Register New User Account
+# API 1: Register New User Account (Hardware Device Lock)
 # ..........................................................
 # Method: POST
 # URL: https://dgapp.onrender.com/api/auth/register
@@ -12,31 +12,68 @@
 # Request Body:
 {
   "email": "john@gmail.com",
-  "password": "securepassword123"
-}
-# Expected Response (200 OK):
-{
-  "id": "1",
-  "email": "john@gmail.com",
+  "device_token": "c3b9b4f2-95b6-4b45-a7b2-850f4a478b12",
   "is_admin": false
+}
+# Expected Response (201 Created):
+{
+  "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIsIn...",
+  "access_token": "eyJhbGciOiJIUzI1NiIsIn...",
+  "token_type": "bearer",
+  "user": {
+    "id": "1",
+    "email": "john@gmail.com",
+    "is_admin": false
+  }
 }
 
 
 # ..........................................................
-# API 2: User Login & JWT Token Retrieval
+# API 2: User Login (Hardware Device Lock)
 # ..........................................................
 # Method: POST
 # URL: https://dgapp.onrender.com/api/auth/login
 # Headers: Content-Type: application/json
 # Request Body:
 {
-  "email": "john@gmail.com",
-  "password": "securepassword123"
+  "device_token": "c3b9b4f2-95b6-4b45-a7b2-850f4a478b12"
 }
 # Expected Response (200 OK):
 {
+  "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIsIn...",
   "access_token": "eyJhbGciOiJIUzI1NiIsIn...",
-  "token_type": "bearer"
+  "token_type": "bearer",
+  "user": {
+    "id": "1",
+    "email": "john@gmail.com",
+    "is_admin": false
+  }
+}
+
+
+# ..........................................................
+# API 2B: Rebind Device (Account Recovery / Replacement)
+# ..........................................................
+# Method: POST
+# URL: https://dgapp.onrender.com/api/auth/rebind-device
+# Headers: Content-Type: application/json
+# Request Body:
+{
+  "email": "john@gmail.com",
+  "new_device_token": "d8e12a45-6677-49f3-8f0b-489025ceba39"
+}
+# Expected Response (200 OK):
+{
+  "success": true,
+  "message": "Device rebound successfully",
+  "token": "eyJhbGciOiJIUzI1NiIsIn...",
+  "user": {
+    "id": "1",
+    "email": "john@gmail.com",
+    "is_admin": false
+  }
 }
 
 
