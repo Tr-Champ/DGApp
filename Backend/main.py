@@ -3,12 +3,40 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import models
+from sqlalchemy import text
 from database import engine, Base
 from routers import auth, users, products, carts, orders
 from seed_data import seed_products_if_empty
 
+def auto_migrate_schema():
+    """
+    Auto-detects and aligns database column types for PostgreSQL / Neon:
+    Converts products.id, carts.id, and orders.id from INTEGER/SERIAL to VARCHAR(255)
+    to resolve psycopg.errors.DatatypeMismatch when UUID strings are inserted.
+    """
+    if engine.dialect.name == "postgresql":
+        try:
+            with engine.begin() as conn:
+                for table in ["products", "carts", "orders"]:
+                    check_query = text(
+                        "SELECT data_type FROM information_schema.columns "
+                        "WHERE table_name = :t AND column_name = 'id';"
+                    )
+                    res = conn.execute(check_query, {"t": table}).fetchone()
+                    if res and res[0] in ("integer", "smallint", "bigint"):
+                        print(f"[AutoMigrate] Converting {table}.id from {res[0]} to VARCHAR(255)...")
+                        conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN id TYPE VARCHAR(255) USING id::VARCHAR;"))
+                        try:
+                            conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN id DROP DEFAULT;"))
+                        except Exception:
+                            pass
+                        print(f"[AutoMigrate] Successfully converted {table}.id to VARCHAR(255)")
+        except Exception as e:
+            print(f"[AutoMigrate Error] Failed to auto-migrate PostgreSQL columns: {e}")
+
 # Automatically create tables for local development / deployment
 Base.metadata.create_all(bind=engine)
+auto_migrate_schema()
 seed_products_if_empty()
 
 app = FastAPI(

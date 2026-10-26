@@ -1,10 +1,12 @@
 -- ==========================================================
--- NEON POSTGRESQL MIGRATION: PASSWORDLESS HARDWARE DEVICE AUTH
+-- NEON POSTGRESQL MIGRATION: 
+-- 1. PASSWORDLESS HARDWARE DEVICE AUTH
+-- 2. FIX UUID STRING ID FOR PRODUCTS, CARTS, AND ORDERS
 -- ==========================================================
 
 BEGIN;
 
--- 1. Ensure table exists with base columns
+-- 1. Ensure users table exists with base columns
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -29,5 +31,46 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_device_token ON users(device_token);
 
 -- 6. Ensure index on email
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+-- ==========================================================
+-- CRITICAL FIX: CONVERT INTEGER SERIAL ID TO VARCHAR(255)
+-- Resolves: (psycopg.errors.DatatypeMismatch) column "id" is of type integer but expression is of type character varying
+-- ==========================================================
+
+-- Fix products table
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'products' AND column_name = 'id' AND data_type = 'integer'
+    ) THEN
+        ALTER TABLE products ALTER COLUMN id TYPE VARCHAR(255) USING id::VARCHAR;
+        ALTER TABLE products ALTER COLUMN id DROP DEFAULT;
+    END IF;
+END $$;
+
+-- Fix carts table
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'carts' AND column_name = 'id' AND data_type = 'integer'
+    ) THEN
+        ALTER TABLE carts ALTER COLUMN id TYPE VARCHAR(255) USING id::VARCHAR;
+        ALTER TABLE carts ALTER COLUMN id DROP DEFAULT;
+    END IF;
+END $$;
+
+-- Fix orders table
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'orders' AND column_name = 'id' AND data_type = 'integer'
+    ) THEN
+        ALTER TABLE orders ALTER COLUMN id TYPE VARCHAR(255) USING id::VARCHAR;
+        ALTER TABLE orders ALTER COLUMN id DROP DEFAULT;
+    END IF;
+END $$;
 
 COMMIT;
