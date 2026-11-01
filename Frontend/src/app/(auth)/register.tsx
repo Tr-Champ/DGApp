@@ -99,9 +99,9 @@ export default function RegisterScreen() {
                         <View style={styles.fencedCard}>
                             <View style={styles.cardFenceTop} />
 
-                            <Text style={styles.cardTitle}>One-Step Setup</Text>
+                            <Text style={styles.cardTitle}>E-Market</Text>
                             <Text style={styles.cardSubtitle}>
-                                Enter your email once. All future logins will simply use your phone lock (fingerprint, Face ID, or PIN/pattern).
+
                             </Text>
 
                             <Text style={styles.fieldLabel}>Email Address</Text>
@@ -115,20 +115,27 @@ export default function RegisterScreen() {
                             />
 
                             {/* Security Highlights */}
+                            {/* <View style={styles.featureBox}>
+                                <View style={styles.featureRow}>
+                                    <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                                    <Text style={styles.featureText}>.</Text>
+                                </View>
+                                <View style={styles.featureRow}>
+                                    <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                                    <Text style={styles.featureText}>No forgotten passwords, just your phone's screen lock</Text>
+                                </View>
+                                <View style={styles.featureRow}>
+                                    <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                                    <Text style={styles.featureText}>.</Text>
+                                </View>
+                            </View> */}
                             <View style={styles.featureBox}>
                                 <View style={styles.featureRow}>
                                     <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                                    <Text style={styles.featureText}>No passwords to remember or lose</Text>
-                                </View>
-                                <View style={styles.featureRow}>
-                                    <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                                    <Text style={styles.featureText}>Hardware-encrypted with Android KeyStore</Text>
-                                </View>
-                                <View style={styles.featureRow}>
-                                    <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                                    <Text style={styles.featureText}>Fast 1-tap entry with system biometrics / PIN</Text>
+                                    <Text style={styles.featureText}>No forgotten passwords, just your phone's screen lock</Text>
                                 </View>
                             </View>
+
 
                             {security.warningMessage && (
                                 <View style={styles.warningBox}>

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "UMUHUZA",
-    "slug": "umuhuza",
+    "name": "E-Market",
+    "slug": "e-market",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/DGLoGo.jpg",
-    "scheme": "umuhuza",
+    "scheme": "e-market",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/DGLoGo.jpg",
