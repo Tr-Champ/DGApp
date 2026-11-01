@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import ProductCard from '../../components/ProductCard';
 import { Colors } from '../../constants/Colors';
 import { useLanguage } from '../../context/LanguageContext';
@@ -27,6 +28,7 @@ let cachedPendingOrders: any[] = [];
 
 export default function CustomerHome() {
     const router = useRouter();
+    const { token } = useAuth();
     const { t, lang } = useLanguage();
     const [products, setProducts] = useState<any[]>(cachedProducts);
     const [pendingOrders, setPendingOrders] = useState<any[]>(cachedPendingOrders);
@@ -45,10 +47,12 @@ export default function CustomerHome() {
     const fetchData = useCallback(async (silent = false) => {
         try {
             if (!silent && cachedProducts.length === 0) setLoading(true);
-            const [productsRes, ordersRes] = await Promise.all([
-                api.get('/products/'),
-                api.get('/orders/').catch(() => ({ data: [] })),
-            ]);
+            const productsPromise = api.get('/products/');
+            const ordersPromise = token
+                ? api.get('/orders/').catch(() => ({ data: [] }))
+                : Promise.resolve({ data: [] });
+
+            const [productsRes, ordersRes] = await Promise.all([productsPromise, ordersPromise]);
 
             const newProducts = productsRes.data || [];
             cachedProducts = newProducts;
@@ -59,27 +63,29 @@ export default function CustomerHome() {
             const pending = allOrders.filter((o) => !o.delivered);
             cachedPendingOrders = pending;
             setPendingOrders(pending);
-        } catch (e) {
-            console.error('Home data fetch error', e);
+        } catch {
+            // Silently fallback without crashing
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [token]);
 
     useEffect(() => {
         // Fetch silently if we already have cached data to show immediately
         fetchData(cachedProducts.length > 0);
 
-        // Real-time sync: poll every 5 seconds for instant delivery updates
-        pollRef.current = setInterval(() => {
-            fetchData(true);
-        }, POLL_INTERVAL_MS);
+        // Real-time sync: poll only when user is logged in
+        if (token) {
+            pollRef.current = setInterval(() => {
+                fetchData(true);
+            }, POLL_INTERVAL_MS);
+        }
 
         return () => {
             if (pollRef.current) clearInterval(pollRef.current);
         };
-    }, [fetchData]);
+    }, [fetchData, token]);
 
     const onRefresh = () => {
         setRefreshing(true);

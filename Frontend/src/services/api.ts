@@ -1,6 +1,5 @@
 import axios, { isAxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 
 const getBaseUrl = (): string => {
     if (process.env.EXPO_PUBLIC_API_URL) {
@@ -16,7 +15,7 @@ if (__DEV__) {
 
 const api = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 60000,
+    timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -25,21 +24,38 @@ const api = axios.create({
 // Automatically inject JWT token into requests if available
 api.interceptors.request.use(
     async (config) => {
-        const token = await AsyncStorage.getItem('user_token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        try {
+            const token = await AsyncStorage.getItem('user_token');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+        } catch {
+            // AsyncStorage read failure fallback
         }
         return config;
     },
     (error) => Promise.reject(error)
 );
 
-// Log errors in dev mode for easier debugging
+// Gracefully handle responses and suppress recurring 401 console spam
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
-        if (__DEV__) {
-            console.error('[API Error]', error.config?.url, error.response?.status, error.response?.data);
+    async (error) => {
+        const status = error?.response?.status;
+        const url = error?.config?.url;
+
+        if (status === 401) {
+            // Clean up stale credentials to prevent perpetual 401 loops
+            try {
+                await AsyncStorage.removeItem('user_token');
+            } catch {
+                // Ignore storage removal errors
+            }
+            return Promise.reject(error);
+        }
+
+        if (__DEV__ && status && status >= 500) {
+            console.warn('[API Server Error]', url, status, error.response?.data);
         }
         return Promise.reject(error);
     }

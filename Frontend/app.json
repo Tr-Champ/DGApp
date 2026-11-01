@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "E-Commerce App",
-    "slug": "dg-retail",
+    "name": "UMUHUZA",
+    "slug": "umuhuza",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/DGLoGo.jpg",
-    "scheme": "dgretail",
+    "scheme": "umuhuza",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/DGLoGo.jpg",
@@ -14,8 +14,9 @@
     },
     "android": {
       "package": "com.dgretail.app",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
-        "backgroundColor": "#2E7D32",
+        "backgroundColor": "#4F46E5",
         "foregroundImage": "./assets/DGLoGo.jpg",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/DGLoGo.jpg"
@@ -31,9 +32,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#000000",
-          "image": "./assets/splash.jpg",
-          "imageWidth": 200
+          "backgroundColor": "#0F172A",
+          "image": "./assets/DGLoGo.jpg",
+          "imageWidth": 160
         }
       ],
       "expo-secure-store"

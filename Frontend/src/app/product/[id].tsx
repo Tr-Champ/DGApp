@@ -10,6 +10,7 @@ import {
     TouchableOpacity,
     FlatList,
     Dimensions,
+    Platform,
     NativeSyntheticEvent,
     NativeScrollEvent,
 } from 'react-native';
@@ -18,6 +19,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/Button';
 import { Colors } from '../../constants/Colors';
 import { useLanguage } from '../../context/LanguageContext';
@@ -30,21 +32,26 @@ export default function ProductDetailScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { t, lang } = useLanguage();
+    const { user } = useAuth();
+    const { cartCount, addToCart } = useCart();
+    const isAdmin = user?.role === 'admin' || user?.is_admin === true;
+
     const [product, setProduct] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
-    const { addToCart } = useCart();
+    const [justAdded, setJustAdded] = useState(false);
 
     useEffect(() => {
-        fetchProductDetails();
+        if (id) fetchProductDetails();
     }, [id]);
 
     const fetchProductDetails = async () => {
         try {
+            setLoading(true);
             const res = await api.get(`/products/${id}`);
             setProduct(res.data);
         } catch (e) {
-            console.error(e);
+            console.warn('Failed to fetch product details', e);
         } finally {
             setLoading(false);
         }
@@ -62,6 +69,7 @@ export default function ProductDetailScreen() {
         return (
             <SafeAreaView style={styles.centerContainer}>
                 <ActivityIndicator color={Colors.primary} size="large" />
+                <Text style={styles.loadingText}>Loading product details...</Text>
             </SafeAreaView>
         );
     }
@@ -72,6 +80,23 @@ export default function ProductDetailScreen() {
         ? validImages
         : ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80'];
 
+    const isOutOfStock = (product.quantity ?? 0) <= 0;
+
+    const handleAddToCart = () => {
+        if (isOutOfStock) {
+            return Alert.alert(
+                t.outOfStock,
+                lang === 'rw' ? 'Iki gicuruzwa nta bihari ubu.' : lang === 'fr' ? 'Ce produit est en rupture de stock.' : 'This product is currently out of stock.'
+            );
+        }
+        addToCart(product);
+        setJustAdded(true);
+        setTimeout(() => setJustAdded(false), 2000);
+    };
+
+    const isAndroid = Platform.OS === 'android';
+    const bottomPadding = insets.bottom > 0 ? insets.bottom : (isAndroid ? 10 : 6);
+    const tabHeight = 54 + bottomPadding;
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -88,12 +113,24 @@ export default function ProductDetailScreen() {
                 <Text style={styles.topBarTitle} numberOfLines={1}>
                     {product.name}
                 </Text>
-                <View style={{ width: 32 }} />
+                <TouchableOpacity
+                    style={styles.cartShortcut}
+                    onPress={() => router.push('/(tabs)/tab3')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="cart-outline" size={24} color={Colors.text} />
+                    {cartCount > 0 && (
+                        <View style={styles.headerBadge}>
+                            <Text style={styles.headerBadgeText}>{cartCount}</Text>
+                        </View>
+                    )}
+                </TouchableOpacity>
             </View>
 
             <ScrollView
                 style={styles.scroll}
-                contentContainerStyle={{ paddingBottom: Math.max(30, insets.bottom + 24) }}
+                contentContainerStyle={{ paddingBottom: 30 }}
+                showsVerticalScrollIndicator={false}
             >
                 {/* Horizontal Swipeable Image Gallery */}
                 <View style={styles.carouselContainer}>
@@ -113,7 +150,7 @@ export default function ProductDetailScreen() {
                         )}
                     />
 
-                    {/* 1/5 Image Counter Badge */}
+                    {/* Image Counter Badge */}
                     <View style={styles.counterBadge}>
                         <Ionicons name="images-outline" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
                         <Text style={styles.counterBadgeText}>
@@ -139,19 +176,26 @@ export default function ProductDetailScreen() {
 
                 {/* Product Content Details */}
                 <View style={styles.content}>
-                    <Text style={styles.name}>{product.name}</Text>
-                    <Text style={styles.price}>{formatRWF(parseFloat(product.price || 0))}</Text>
-
-                    <View style={styles.metaRow}>
-                        <View style={styles.metaBadge}>
-                            <Text style={styles.metaBadgeText}>{product.category || 'General'}</Text>
+                    <View style={styles.priceRow}>
+                        <Text style={styles.price}>{formatRWF(parseFloat(product.price || 0))}</Text>
+                        <View style={styles.categoryBadge}>
+                            <Text style={styles.categoryBadgeText}>{product.category || 'General'}</Text>
                         </View>
-                        <Text style={[styles.stockText, (product.quantity ?? 0) <= 0 && { color: Colors.error }]}>
-                            {(product.quantity ?? 0) <= 0
-                                ? (lang === 'rw' ? 'Nta bihari' : lang === 'fr' ? 'Rupture de stock' : 'Out of Stock')
-                                : `#Items: ${product.quantity} (${lang === 'rw' ? 'ibicuruzwa bihari' : lang === 'fr' ? 'exemplaires' : 'copies'})`}
-                        </Text>
+                    </View>
 
+                    <Text style={styles.name}>{product.name}</Text>
+
+                    <View style={styles.stockRow}>
+                        <Ionicons
+                            name={isOutOfStock ? 'close-circle' : 'checkmark-circle'}
+                            size={16}
+                            color={isOutOfStock ? Colors.error : Colors.success}
+                        />
+                        <Text style={[styles.stockText, isOutOfStock && { color: Colors.error }]}>
+                            {isOutOfStock
+                                ? (lang === 'rw' ? 'Nta bihari' : lang === 'fr' ? 'Rupture de stock' : 'Out of Stock')
+                                : `${product.quantity} in stock (${lang === 'rw' ? 'ibicuruzwa bihari' : lang === 'fr' ? 'unités disponibles' : 'available units'})`}
+                        </Text>
                     </View>
 
                     {product.info?.description ? (
@@ -161,19 +205,88 @@ export default function ProductDetailScreen() {
                         </View>
                     ) : null}
 
+                    {/* Fast delivery notice */}
+                    <View style={styles.deliveryCard}>
+                        <Ionicons name="flash-outline" size={20} color={Colors.primary} />
+                        <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text style={styles.deliveryTitle}>Express Local Delivery</Text>
+                            <Text style={styles.deliverySub}>Real-time delivery confirmation right on your phone.</Text>
+                        </View>
+                    </View>
+
+                    {/* Add to Cart Button */}
                     <Button
-                        title={t.addToCart}
-                        onPress={() => {
-                            if ((product.quantity ?? 0) <= 0) {
-                                return Alert.alert(t.outOfStock, lang === 'rw' ? 'Iyi nyongeramazina nta bihari.' : lang === 'fr' ? 'Ce produit est en rupture de stock.' : 'This product is currently out of stock.');
-                            }
-                            addToCart(product);
-                            Alert.alert(t.success, `${product.name} ${lang === 'rw' ? 'yongereye mu igare' : lang === 'fr' ? 'ajouté au panier' : 'added to cart'}!`);
-                        }}
-                        style={[styles.cartBtn, (product.quantity ?? 0) <= 0 && { backgroundColor: Colors.textMuted }]}
+                        title={
+                            justAdded
+                                ? (lang === 'rw' ? '✓ Byongerewe mu Gare!' : lang === 'fr' ? '✓ Ajouté au Panier!' : '✓ Added to Cart!')
+                                : t.addToCart
+                        }
+                        onPress={handleAddToCart}
+                        style={[
+                            styles.cartBtn,
+                            isOutOfStock && { backgroundColor: Colors.textMuted },
+                            justAdded && { backgroundColor: Colors.success },
+                        ]}
                     />
                 </View>
             </ScrollView>
+
+            {/* Bottom Tabs Bar: Kept permanently visible while browsing products */}
+            <View style={[styles.bottomTabBar, { height: tabHeight, paddingBottom: bottomPadding }]}>
+                <TouchableOpacity
+                    style={styles.tabItem}
+                    onPress={() => router.replace('/(tabs)/tab1')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name={isAdmin ? 'grid-outline' : 'home-outline'} size={22} color={Colors.textMuted} />
+                    <Text style={styles.tabLabel}>{isAdmin ? 'Dashboard' : 'Home'}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.tabItem}
+                    onPress={() => router.replace('/(tabs)/tab2')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name={isAdmin ? 'cube-outline' : 'search-outline'} size={22} color={Colors.textMuted} />
+                    <Text style={styles.tabLabel}>{isAdmin ? 'Products' : 'Search'}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.tabItem}
+                    onPress={() => router.replace('/(tabs)/tab3')}
+                    activeOpacity={0.7}
+                >
+                    <View style={styles.tabIconWrapper}>
+                        <Ionicons name={isAdmin ? 'checkmark-done-circle-outline' : 'cart-outline'} size={24} color={Colors.primary} />
+                        {!isAdmin && cartCount > 0 && (
+                            <View style={styles.tabBadge}>
+                                <Text style={styles.tabBadgeText}>{cartCount}</Text>
+                            </View>
+                        )}
+                    </View>
+                    <Text style={[styles.tabLabel, { color: Colors.primary, fontWeight: '700' }]}>
+                        {isAdmin ? 'Deliveries' : 'Cart'}
+                    </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.tabItem}
+                    onPress={() => router.replace('/(tabs)/tab4')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name={isAdmin ? 'bar-chart-outline' : 'list-outline'} size={22} color={Colors.textMuted} />
+                    <Text style={styles.tabLabel}>{isAdmin ? 'Reports' : 'Orders'}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.tabItem}
+                    onPress={() => router.replace('/(tabs)/profile')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="person-outline" size={22} color={Colors.textMuted} />
+                    <Text style={styles.tabLabel}>Profile</Text>
+                </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 }
@@ -185,6 +298,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: Colors.background,
+        gap: 12,
+    },
+    loadingText: {
+        fontSize: 14,
+        color: Colors.textMuted,
+        fontWeight: '500',
     },
     topBar: {
         flexDirection: 'row',
@@ -201,30 +320,51 @@ const styles = StyleSheet.create({
     },
     topBarTitle: {
         fontSize: 16,
-        fontWeight: '700',
+        fontWeight: '800',
         color: Colors.text,
-        maxWidth: 240,
+        maxWidth: 220,
+    },
+    cartShortcut: {
+        padding: 4,
+        position: 'relative',
+    },
+    headerBadge: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        backgroundColor: '#EF4444',
+        borderRadius: 9,
+        minWidth: 18,
+        height: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 4,
+    },
+    headerBadgeText: {
+        color: '#FFFFFF',
+        fontSize: 10,
+        fontWeight: '800',
     },
     scroll: { flex: 1 },
     carouselContainer: {
         position: 'relative',
         width: SCREEN_WIDTH,
-        height: 330,
-        backgroundColor: '#E5E7EB',
+        height: 320,
+        backgroundColor: '#F1F5F9',
     },
     carouselImage: {
         width: SCREEN_WIDTH,
-        height: 330,
+        height: 320,
     },
     counterBadge: {
         position: 'absolute',
         top: 14,
         right: 14,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backgroundColor: 'rgba(15, 23, 42, 0.75)',
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 10,
-        paddingVertical: 4,
+        paddingVertical: 5,
         borderRadius: 14,
     },
     counterBadgeText: {
@@ -240,66 +380,73 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
+        gap: 6,
     },
     dot: {
-        height: 7,
-        borderRadius: 4,
-        marginHorizontal: 3,
+        height: 6,
+        borderRadius: 3,
     },
     activeDot: {
-        width: 18,
+        width: 20,
         backgroundColor: Colors.primary,
     },
     inactiveDot: {
-        width: 7,
+        width: 6,
         backgroundColor: 'rgba(255, 255, 255, 0.65)',
     },
     content: {
-        padding: 20,
+        padding: 18,
     },
-    name: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: Colors.text,
+    priceRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
     },
     price: {
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: '900',
         color: Colors.primary,
-        marginVertical: 8,
     },
-    metaRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: 4,
-        marginBottom: 16,
-    },
-    metaBadge: {
-        backgroundColor: '#E8F5E9',
+    categoryBadge: {
+        backgroundColor: Colors.primaryLight,
         paddingHorizontal: 12,
         paddingVertical: 5,
-        borderRadius: 8,
+        borderRadius: 14,
     },
-    metaBadgeText: {
+    categoryBadgeText: {
         color: Colors.primary,
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '700',
     },
+    name: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: Colors.text,
+        marginBottom: 10,
+        lineHeight: 26,
+    },
+    stockRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 16,
+    },
     stockText: {
-        fontSize: 14,
-        color: Colors.textMuted,
+        fontSize: 13,
+        fontWeight: '600',
+        color: Colors.success,
     },
     descBox: {
-        marginVertical: 12,
-        padding: 16,
         backgroundColor: '#FFFFFF',
+        padding: 14,
         borderRadius: 12,
+        marginBottom: 16,
         borderWidth: 1,
         borderColor: Colors.border,
     },
     descTitle: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '700',
         color: Colors.text,
         marginBottom: 6,
@@ -307,11 +454,74 @@ const styles = StyleSheet.create({
     descText: {
         fontSize: 14,
         color: Colors.textMuted,
-        lineHeight: 22,
+        lineHeight: 20,
+    },
+    deliveryCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        padding: 14,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: Colors.border,
+    },
+    deliveryTitle: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: Colors.text,
+    },
+    deliverySub: {
+        fontSize: 12,
+        color: Colors.textMuted,
+        marginTop: 2,
     },
     cartBtn: {
-        marginTop: 16,
-        borderRadius: 12,
+        marginTop: 4,
+        borderRadius: 14,
         paddingVertical: 14,
+    },
+    bottomTabBar: {
+        flexDirection: 'row',
+        backgroundColor: '#FFFFFF',
+        borderTopWidth: 1,
+        borderTopColor: Colors.border,
+        paddingTop: 6,
+        elevation: 10,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+    },
+    tabItem: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    tabIconWrapper: {
+        position: 'relative',
+    },
+    tabBadge: {
+        position: 'absolute',
+        top: -4,
+        right: -8,
+        backgroundColor: '#EF4444',
+        borderRadius: 8,
+        minWidth: 16,
+        height: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 3,
+    },
+    tabBadgeText: {
+        color: '#FFFFFF',
+        fontSize: 9,
+        fontWeight: '800',
+    },
+    tabLabel: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: Colors.textMuted,
+        marginTop: 2,
     },
 });

@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { formatRWF } from '../../constants/i18n';
 
@@ -35,6 +36,7 @@ type FilterTab = 'all' | 'pending' | 'delivered';
 const POLL_INTERVAL_MS = 6000;
 
 export default function AdminConfirmOrders() {
+    const { token } = useAuth();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -48,6 +50,12 @@ export default function AdminConfirmOrders() {
     const [detailsModalVisible, setDetailsModalVisible] = useState(false);
 
     const fetchOrders = useCallback(async () => {
+        if (!token) {
+            setOrders([]);
+            setLoading(false);
+            setRefreshing(false);
+            return;
+        }
         try {
             let data: Order[] = [];
             try {
@@ -58,24 +66,25 @@ export default function AdminConfirmOrders() {
                 data = fallback.data || [];
             }
             setOrders(data);
-        } catch (e) {
-            console.error('Error fetching admin orders', e);
+        } catch {
+            // Suppress unneeded error spam
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [token]);
 
     useEffect(() => {
         fetchOrders();
-        // Real-time sync: poll every 15 seconds
-        pollRef.current = setInterval(() => {
-            fetchOrders();
-        }, POLL_INTERVAL_MS);
+        if (token) {
+            pollRef.current = setInterval(() => {
+                fetchOrders();
+            }, POLL_INTERVAL_MS);
+        }
         return () => {
             if (pollRef.current) clearInterval(pollRef.current);
         };
-    }, [fetchOrders]);
+    }, [fetchOrders, token]);
 
     const onRefresh = () => { setRefreshing(true); fetchOrders(); };
 

@@ -74,12 +74,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     setUser(normUser);
                     await cacheOfflineSession(storedToken, normUser);
                 } catch (netErr: any) {
-                    // Offline fallback: load cached session if server is unreachable
-                    const cached = await getCachedOfflineSession();
-                    if (cached && cached.token === storedToken) {
-                        setToken(cached.token);
-                        setUser(normalizeUser(cached.user));
-                    } else if (netErr?.response?.status === 401) {
+                    if (netErr?.response?.status === 401) {
+                        // The saved token is explicitly rejected by the server
+                        await logout();
+                    } else if (!netErr?.response) {
+                        // Offline fallback: ONLY load cached session if truly offline / network unreachable
+                        const cached = await getCachedOfflineSession();
+                        if (cached && cached.token === storedToken) {
+                            setToken(cached.token);
+                            setUser(normalizeUser(cached.user));
+                        }
+                    } else {
                         await logout();
                     }
                 }

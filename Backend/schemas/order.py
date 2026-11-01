@@ -1,5 +1,5 @@
-from pydantic import BaseModel, ConfigDict
-from typing import List, Any, Optional
+from pydantic import BaseModel
+from typing import List, Any, Optional, Union
 from datetime import datetime
 
 class OrderCreate(BaseModel):
@@ -11,10 +11,9 @@ class OrderResponse(BaseModel):
     model_config = {"from_attributes": True}
 
     id: str
-    user_id: str
+    user_id: Union[str, int]
     items: List[Any]
     total_price: float
     paid: bool
     delivered: bool
     created_at: Optional[datetime] = None
-

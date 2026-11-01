@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
     View, Text, FlatList, StyleSheet, ActivityIndicator,
-    RefreshControl, TouchableOpacity, Alert, Modal, ScrollView, Image
+    RefreshControl, TouchableOpacity, Alert, Modal, ScrollView, Image,
+    KeyboardAvoidingView, Platform
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -308,8 +309,18 @@ export default function AdminProductsCrud() {
             {/* Product Edit / Create Modal */}
             <Modal visible={modalVisible} animationType="slide" onRequestClose={() => setModalVisible(false)}>
                 <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
-                    <ScrollView contentContainerStyle={styles.modalContainer} keyboardShouldPersistTaps="handled">
-                        <Text style={styles.modalTitle}>{editTarget ? 'Edit Product' : 'Add New Product'}</Text>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        style={{ flex: 1 }}
+                        keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
+                    >
+                        <ScrollView
+                            contentContainerStyle={[styles.modalContainer, { paddingBottom: 100 }]}
+                            keyboardShouldPersistTaps="handled"
+                            keyboardDismissMode="on-drag"
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <Text style={styles.modalTitle}>{editTarget ? 'Edit Product' : 'Add New Product'}</Text>
 
                         <Text style={styles.modalLabel}>Product Name *</Text>
                         <Input placeholder="e.g. Leather Handbag" value={form.name} onChangeText={(v: string) => setForm((f) => ({ ...f, name: v }))} />
@@ -399,6 +410,7 @@ export default function AdminProductsCrud() {
                             style={{ backgroundColor: '#EF4444', marginVertical: 8 }}
                         />
                     </ScrollView>
+                    </KeyboardAvoidingView>
                 </SafeAreaView>
             </Modal>
         </View>

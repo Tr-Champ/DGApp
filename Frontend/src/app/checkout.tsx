@@ -171,10 +171,13 @@ export default function CheckoutScreen() {
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
             >
                 <ScrollView
-                    contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(30, insets.bottom + 20) }]}
+                    contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(140, insets.bottom + 120) }]}
                     keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
+                    showsVerticalScrollIndicator={false}
                 >
                     {step === 1 ? (
                         /* STEP 1: CUSTOMER DELIVERY DETAILS */
