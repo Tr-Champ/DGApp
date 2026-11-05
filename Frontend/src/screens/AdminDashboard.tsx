@@ -24,6 +24,7 @@ import {
 } from '../api/client';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Card } from '../components/Card';
+import { EmptyState } from '../components/EmptyState';
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
@@ -32,6 +33,8 @@ export const AdminDashboard: React.FC = () => {
   const navigation = useNavigation<any>();
   const { logout, user } = useAuth();
   const { theme, isDark, toggleTheme, setThemeMode } = useTheme();
+
+  const isAdmin = user?.role === 'admin';
 
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [coursesCount, setCoursesCount] = useState(0);
@@ -97,14 +100,22 @@ export const AdminDashboard: React.FC = () => {
       >
         <ScreenHeader
           title="Admin Control"
-          subtitle="System oversight & resource monitoring"
-          badge="Admin"
+          subtitle={!isAdmin ? "Restricted Institutional Access" : "System oversight & resource monitoring"}
+          badge={!isAdmin ? "Staff" : "Admin"}
           rightActionTitle="Log Out"
           rightIcon={<Ionicons name="log-out-outline" size={16} color="#FFFFFF" />}
           onRightAction={handleLogout}
         />
 
-        {loading ? (
+        {!isAdmin ? (
+          <EmptyState
+            icon="lock-closed-outline"
+            title="Administrator Access Only"
+            description="You are currently signed in as a Teacher. Institutional administration and conflict watch controls are restricted to Administrator accounts."
+            actionTitle="Sign Out & Switch to Admin"
+            onAction={handleLogout}
+          />
+        ) : loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text style={[styles.loadingText, { color: theme.colors.muted }]}>
@@ -229,7 +240,7 @@ export const AdminDashboard: React.FC = () => {
               👨‍🏫 Teacher Course Allocations
             </Text>
             <Card style={styles.allocationsCard}>
-              {teachers.map((t) => {
+              {[...teachers].sort((a, b) => b.id - a.id).map((t) => {
                 const assigned = t.courses || [];
                 return (
                   <View

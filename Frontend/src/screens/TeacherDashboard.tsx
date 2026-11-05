@@ -28,8 +28,15 @@ const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 export const TeacherDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const { user, lockApp, isDeviceLockSupported } = useAuth();
+  const { user, logout, lockApp, isDeviceLockSupported } = useAuth();
   const { theme: currentTheme, isDark } = useTheme();
+
+  const handleLogout = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: logout },
+    ]);
+  };
 
   // ISOLATION: Always use the logged-in teacher's teacher_id
   const teacherId = user?.teacher_id || 1;
@@ -139,6 +146,9 @@ export const TeacherDashboard: React.FC = () => {
           title="Teacher Portal"
           subtitle={`Personal workspace for ${teacher?.full_name || 'Staff'}`}
           badge={teacher?.teacher_code || 'T001'}
+          rightActionTitle="Log Out"
+          rightIcon={<Ionicons name="log-out-outline" size={16} color="#FFFFFF" />}
+          onRightAction={handleLogout}
         />
 
         {/* 1. Header Profile Card */}
