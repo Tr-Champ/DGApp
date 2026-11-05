@@ -29,10 +29,15 @@ import { TextInputField } from '../components/TextInputField';
 import { EmptyState } from '../components/EmptyState';
 import { theme } from '../theme';
 import { useTheme } from '../theme/ThemeContext';
+import { useAuth } from '../auth/AuthContext';
 
 export const CourseManagement: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const { theme: currentTheme, isDark } = useTheme();
+
+  const isAdmin = user?.role === 'admin';
+  const currentTeacherId = user?.teacher_id;
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,6 +145,10 @@ export const CourseManagement: React.FC = () => {
     );
   };
 
+  const visibleCourses = !isAdmin && currentTeacherId
+    ? courses.filter((c) => c.assigned_teacher?.id === currentTeacherId || c.teacher_id === currentTeacherId)
+    : courses;
+
   const renderCourseCard = ({ item }: { item: Course }) => {
     const hasTeacher = !!item.assigned_teacher;
 
@@ -149,22 +158,24 @@ export const CourseManagement: React.FC = () => {
           <View style={styles.codeBadge}>
             <Text style={styles.codeText}>{item.course_code}</Text>
           </View>
-          <View style={styles.actionsBox}>
-            <TouchableOpacity
-              onPress={() => openEditModal(item)}
-              style={styles.iconBtn}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="create-outline" size={18} color={theme.colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => handleDeleteCourse(item)}
-              style={[styles.iconBtn, styles.deleteBtn]}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="trash-outline" size={18} color={theme.colors.danger} />
-            </TouchableOpacity>
-          </View>
+          {isAdmin && (
+            <View style={styles.actionsBox}>
+              <TouchableOpacity
+                onPress={() => openEditModal(item)}
+                style={styles.iconBtn}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="create-outline" size={18} color={theme.colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleDeleteCourse(item)}
+                style={[styles.iconBtn, styles.deleteBtn]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={18} color={theme.colors.danger} />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <Text style={styles.courseName}>{item.course_name}</Text>
@@ -201,12 +212,12 @@ export const CourseManagement: React.FC = () => {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         <ScreenHeader
-          title="Courses"
-          subtitle="Curriculum syllabus & teacher assignment"
-          badge={`${courses.length} Registered`}
-          rightActionTitle="Register"
-          rightIcon={<Ionicons name="add" size={18} color={theme.colors.white} />}
-          onRightAction={openCreateModal}
+          title={!isAdmin ? "My Courses" : "Courses"}
+          subtitle={!isAdmin ? "My allocated teaching modules (Isolated)" : "Curriculum syllabus & teacher assignment"}
+          badge={!isAdmin ? `${visibleCourses.length}/2 Allocated` : `${courses.length} Registered`}
+          rightActionTitle={isAdmin ? "Register" : undefined}
+          rightIcon={isAdmin ? <Ionicons name="add" size={18} color={theme.colors.white} /> : undefined}
+          onRightAction={isAdmin ? openCreateModal : undefined}
         />
 
         {loading ? (
@@ -216,7 +227,7 @@ export const CourseManagement: React.FC = () => {
           </View>
         ) : (
           <FlatList
-            data={courses}
+            data={visibleCourses}
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderCourseCard}
             contentContainerStyle={[
@@ -229,10 +240,10 @@ export const CourseManagement: React.FC = () => {
             ListEmptyComponent={
               <EmptyState
                 icon="book-outline"
-                title="No Courses Registered"
-                description="Register curriculum courses to start building institutional timetable."
-                actionTitle="Register Course"
-                onAction={openCreateModal}
+                title={!isAdmin ? "No Allocated Courses" : "No Courses Registered"}
+                description={!isAdmin ? "Administrator has not assigned modules to your account yet." : "Register curriculum courses to start building institutional timetable."}
+                actionTitle={isAdmin ? "Register Course" : undefined}
+                onAction={isAdmin ? openCreateModal : undefined}
               />
             }
           />

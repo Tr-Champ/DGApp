@@ -31,10 +31,15 @@ import { TextInputField } from '../components/TextInputField';
 import { EmptyState } from '../components/EmptyState';
 import { theme } from '../theme';
 import { useTheme } from '../theme/ThemeContext';
+import { useAuth } from '../auth/AuthContext';
 
 export const TeacherManagement: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const { theme: currentTheme, isDark } = useTheme();
+
+  const isAdmin = user?.role === 'admin';
+  const currentTeacherId = user?.teacher_id;
 
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
@@ -181,6 +186,10 @@ export const TeacherManagement: React.FC = () => {
     }
   };
 
+  const visibleTeachers = !isAdmin && currentTeacherId
+    ? teachers.filter((t) => t.id === currentTeacherId)
+    : teachers;
+
   const renderTeacherCard = ({ item }: { item: Teacher }) => {
     const assignedCourses = item.courses || [];
 
@@ -245,14 +254,16 @@ export const TeacherManagement: React.FC = () => {
             <Text style={styles.actionBtnOutlineText}>Edit</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionBtnPrimary}
-            onPress={() => openAssignModal(item)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="link-outline" size={16} color={theme.colors.white} />
-            <Text style={styles.actionBtnPrimaryText}>Assign Courses</Text>
-          </TouchableOpacity>
+          {isAdmin && (
+            <TouchableOpacity
+              style={styles.actionBtnPrimary}
+              onPress={() => openAssignModal(item)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="link-outline" size={16} color={theme.colors.white} />
+              <Text style={styles.actionBtnPrimaryText}>Assign Courses</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </Card>
     );
@@ -262,12 +273,12 @@ export const TeacherManagement: React.FC = () => {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         <ScreenHeader
-          title="Teachers"
-          subtitle="Registered staff & course allocations"
-          badge={`${teachers.length} Registered`}
-          rightActionTitle="Register"
-          rightIcon={<Ionicons name="add" size={18} color={theme.colors.white} />}
-          onRightAction={openCreateModal}
+          title={!isAdmin ? "My Teacher Profile" : "Teachers"}
+          subtitle={!isAdmin ? "Personal staff profile & allocation (Isolated)" : "Registered staff & course allocations"}
+          badge={!isAdmin ? (visibleTeachers[0]?.teacher_code || 'Staff') : `${teachers.length} Registered`}
+          rightActionTitle={isAdmin ? "Register" : undefined}
+          rightIcon={isAdmin ? <Ionicons name="add" size={18} color={theme.colors.white} /> : undefined}
+          onRightAction={isAdmin ? openCreateModal : undefined}
         />
 
         {loading ? (
@@ -277,7 +288,7 @@ export const TeacherManagement: React.FC = () => {
           </View>
         ) : (
           <FlatList
-            data={teachers}
+            data={visibleTeachers}
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderTeacherCard}
             contentContainerStyle={[
@@ -290,10 +301,10 @@ export const TeacherManagement: React.FC = () => {
             ListEmptyComponent={
               <EmptyState
                 icon="people-outline"
-                title="No Teachers Found"
-                description="Register teachers to start scheduling classes."
-                actionTitle="Register Teacher"
-                onAction={openCreateModal}
+                title="No Teacher Profile Found"
+                description={!isAdmin ? "Teacher details could not be found." : "Register teachers to start scheduling classes."}
+                actionTitle={isAdmin ? "Register Teacher" : undefined}
+                onAction={isAdmin ? openCreateModal : undefined}
               />
             }
           />
