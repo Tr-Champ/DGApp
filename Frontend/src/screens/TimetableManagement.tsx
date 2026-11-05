@@ -32,12 +32,14 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { TextInputField } from '../components/TextInputField';
 import { EmptyState } from '../components/EmptyState';
 import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 
 const DAYS = ['All', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 export const TimetableManagement: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { theme: currentTheme, isDark } = useTheme();
 
   const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -244,7 +246,7 @@ export const TimetableManagement: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         <ScreenHeader
           title="Timetable"
@@ -320,11 +322,14 @@ export const TimetableManagement: React.FC = () => {
               <View
                 style={[
                   styles.modalContent,
-                  { paddingBottom: Math.max(insets.bottom, 20) + 12 },
+                  {
+                    backgroundColor: currentTheme.colors.card,
+                    paddingBottom: Math.max(insets.bottom, 20) + 12,
+                  },
                 ]}
               >
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>
+                  <Text style={[styles.modalTitle, { color: currentTheme.colors.text }]}>
                     {isEditing ? 'Edit Lesson Entry' : 'Schedule New Lesson'}
                   </Text>
                   <TouchableOpacity onPress={() => setModalVisible(false)}>

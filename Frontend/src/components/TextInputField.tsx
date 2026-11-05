@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ViewStyle,
 } from 'react-native';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 
 interface TextInputFieldProps extends TextInputProps {
   label?: string;
@@ -22,57 +22,62 @@ export const TextInputField: React.FC<TextInputFieldProps> = ({
   style,
   ...props
 }) => {
+  const { theme } = useTheme();
+
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && (
+        <Text style={[styles.label, { color: theme.colors.text }]}>
+          {label}
+        </Text>
+      )}
       <TextInput
         placeholderTextColor={theme.colors.muted}
         style={[
           styles.input,
-          error ? styles.inputError : null,
+          {
+            backgroundColor: theme.colors.inputBg,
+            borderColor: error ? theme.colors.danger : theme.colors.border,
+            color: theme.colors.text,
+          },
           props.multiline ? styles.multilineInput : null,
           style,
         ]}
         {...props}
       />
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? (
+        <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: theme.spacing.md,
+    marginBottom: 12,
     width: '100%',
   },
   label: {
-    fontSize: theme.fontSize.sm,
+    fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.text,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: theme.colors.white,
     borderWidth: 1.2,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: 10,
     height: 48,
     paddingHorizontal: 14,
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text,
+    fontSize: 15,
   },
   multilineInput: {
     height: 90,
     paddingTop: 12,
     textAlignVertical: 'top',
   },
-  inputError: {
-    borderColor: theme.colors.danger,
-    backgroundColor: theme.colors.dangerLight,
-  },
   errorText: {
-    color: theme.colors.danger,
-    fontSize: theme.fontSize.xs,
+    fontSize: 12,
     marginTop: 4,
     fontWeight: '500',
   },

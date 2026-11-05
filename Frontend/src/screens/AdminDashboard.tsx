@@ -13,6 +13,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import {
   getTeachers,
   getCourses,
@@ -23,7 +24,6 @@ import {
 } from '../api/client';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Card } from '../components/Card';
-import { theme } from '../theme';
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
@@ -31,6 +31,7 @@ export const AdminDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { logout, user } = useAuth();
+  const { theme, isDark, toggleTheme, setThemeMode } = useTheme();
 
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [coursesCount, setCoursesCount] = useState(0);
@@ -82,7 +83,7 @@ export const AdminDashboard: React.FC = () => {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={[
@@ -99,84 +100,177 @@ export const AdminDashboard: React.FC = () => {
           subtitle="System oversight & resource monitoring"
           badge="Admin"
           rightActionTitle="Log Out"
-          rightIcon={<Ionicons name="log-out-outline" size={16} color={theme.colors.white} />}
+          rightIcon={<Ionicons name="log-out-outline" size={16} color="#FFFFFF" />}
           onRightAction={handleLogout}
         />
 
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.loadingText}>Aggregating institutional data...</Text>
+            <Text style={[styles.loadingText, { color: theme.colors.muted }]}>
+              Aggregating institutional data...
+            </Text>
           </View>
         ) : (
           <>
-            {/* 1. Top Stats 4 Cards Row */}
+            {/* 1. Theme & Appearance Settings Card */}
+            <Card style={styles.settingsCard}>
+              <View style={styles.settingsHeader}>
+                <View style={styles.settingsTitleRow}>
+                  <Ionicons name="color-palette-outline" size={20} color={theme.colors.primary} />
+                  <Text style={[styles.settingsTitle, { color: theme.colors.text }]}>
+                    Display & Theme Settings
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.currentThemeBadge,
+                    { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.border },
+                  ]}
+                >
+                  <Text style={[styles.currentThemeText, { color: theme.colors.primary }]}>
+                    {isDark ? '🌙 Dark Mode' : '☀️ Light Mode'}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={[styles.settingsDesc, { color: theme.colors.muted }]}>
+                Switch between Light and Dark themes. The active theme applies instantly across all screens, modals, and tab navigation.
+              </Text>
+
+              <View style={styles.themeButtonsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.themeChoiceBtn,
+                    !isDark && styles.themeChoiceBtnActive,
+                    {
+                      backgroundColor: !isDark ? theme.colors.primary : theme.colors.background,
+                      borderColor: !isDark ? theme.colors.primary : theme.colors.border,
+                    },
+                  ]}
+                  onPress={() => setThemeMode('light')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="sunny-outline"
+                    size={18}
+                    color={!isDark ? '#FFFFFF' : theme.colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.themeChoiceText,
+                      { color: !isDark ? '#FFFFFF' : theme.colors.textSecondary },
+                    ]}
+                  >
+                    Light Theme
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.themeChoiceBtn,
+                    isDark && styles.themeChoiceBtnActive,
+                    {
+                      backgroundColor: isDark ? theme.colors.primary : theme.colors.background,
+                      borderColor: isDark ? theme.colors.primary : theme.colors.border,
+                    },
+                  ]}
+                  onPress={() => setThemeMode('dark')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="moon-outline"
+                    size={18}
+                    color={isDark ? '#FFFFFF' : theme.colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.themeChoiceText,
+                      { color: isDark ? '#FFFFFF' : theme.colors.textSecondary },
+                    ]}
+                  >
+                    Dark Theme
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </Card>
+
+            {/* 2. Top Stats 4 Cards Row */}
             <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <View style={[styles.statIconBox, { backgroundColor: '#EFF6FF' }]}>
+              <View style={[styles.statCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <View style={[styles.statIconBox, { backgroundColor: theme.colors.primaryLight }]}>
                   <Ionicons name="people" size={22} color={theme.colors.primary} />
                 </View>
-                <Text style={styles.statNumber}>{teachers.length}</Text>
-                <Text style={styles.statLabel}>Teachers</Text>
+                <Text style={[styles.statNumber, { color: theme.colors.text }]}>{teachers.length}</Text>
+                <Text style={[styles.statLabel, { color: theme.colors.muted }]}>Teachers</Text>
               </View>
 
-              <View style={styles.statCard}>
-                <View style={[styles.statIconBox, { backgroundColor: '#F0FDF4' }]}>
+              <View style={[styles.statCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <View style={[styles.statIconBox, { backgroundColor: isDark ? '#052E16' : '#F0FDF4' }]}>
                   <Ionicons name="book" size={22} color={theme.colors.success} />
                 </View>
-                <Text style={styles.statNumber}>{coursesCount}</Text>
-                <Text style={styles.statLabel}>Courses</Text>
+                <Text style={[styles.statNumber, { color: theme.colors.text }]}>{coursesCount}</Text>
+                <Text style={[styles.statLabel, { color: theme.colors.muted }]}>Courses</Text>
               </View>
 
-              <View style={styles.statCard}>
-                <View style={[styles.statIconBox, { backgroundColor: '#FFFBEB' }]}>
+              <View style={[styles.statCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <View style={[styles.statIconBox, { backgroundColor: isDark ? '#451A03' : '#FFFBEB' }]}>
                   <Ionicons name="calendar" size={22} color={theme.colors.warning} />
                 </View>
-                <Text style={styles.statNumber}>{timetable.length}</Text>
-                <Text style={styles.statLabel}>Lessons</Text>
+                <Text style={[styles.statNumber, { color: theme.colors.text }]}>{timetable.length}</Text>
+                <Text style={[styles.statLabel, { color: theme.colors.muted }]}>Lessons</Text>
               </View>
 
-              <View style={styles.statCard}>
-                <View style={[styles.statIconBox, { backgroundColor: '#F5F3FF' }]}>
-                  <Ionicons name="notifications" size={22} color="#7C3AED" />
+              <View style={[styles.statCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <View style={[styles.statIconBox, { backgroundColor: isDark ? '#2E1065' : '#F5F3FF' }]}>
+                  <Ionicons name="notifications" size={22} color="#A855F7" />
                 </View>
-                <Text style={styles.statNumber}>{notifCount}</Text>
-                <Text style={styles.statLabel}>Alerts</Text>
+                <Text style={[styles.statNumber, { color: theme.colors.text }]}>{notifCount}</Text>
+                <Text style={[styles.statLabel, { color: theme.colors.muted }]}>Alerts</Text>
               </View>
             </View>
 
-            {/* 2. Quick Actions Row */}
-            <Text style={styles.sectionHeaderTitle}>⚡ Quick Operations</Text>
+            {/* 3. Quick Actions Row */}
+            <Text style={[styles.sectionHeaderTitle, { color: theme.colors.text }]}>⚡ Quick Operations</Text>
             <View style={styles.quickActionsRow}>
               <TouchableOpacity
-                style={styles.quickActionBtn}
+                style={[
+                  styles.quickActionBtn,
+                  { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                ]}
                 onPress={() => navigation.navigate('TeacherManagement')}
                 activeOpacity={0.7}
               >
                 <Ionicons name="person-add-outline" size={20} color={theme.colors.primary} />
-                <Text style={styles.quickActionText}>Manage Teachers</Text>
+                <Text style={[styles.quickActionText, { color: theme.colors.text }]}>Manage Teachers</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.quickActionBtn}
+                style={[
+                  styles.quickActionBtn,
+                  { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                ]}
                 onPress={() => navigation.navigate('CourseManagement')}
                 activeOpacity={0.7}
               >
                 <Ionicons name="add-circle-outline" size={20} color={theme.colors.success} />
-                <Text style={styles.quickActionText}>Manage Courses</Text>
+                <Text style={[styles.quickActionText, { color: theme.colors.text }]}>Manage Courses</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.quickActionBtn}
+                style={[
+                  styles.quickActionBtn,
+                  { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                ]}
                 onPress={() => navigation.navigate('TimetableManagement')}
                 activeOpacity={0.7}
               >
                 <Ionicons name="calendar-outline" size={20} color={theme.colors.warning} />
-                <Text style={styles.quickActionText}>Edit Timetable</Text>
+                <Text style={[styles.quickActionText, { color: theme.colors.text }]}>Edit Timetable</Text>
               </TouchableOpacity>
             </View>
 
-            {/* 3. Conflict Watch Panel (Exam Section E Proof) */}
+            {/* 4. Conflict Watch Panel (Exam Section E Proof) */}
             <Card style={styles.conflictWatchCard}>
               <View style={styles.conflictWatchHeader}>
                 <Ionicons name="shield-checkmark" size={24} color="#059669" />
@@ -212,30 +306,43 @@ export const AdminDashboard: React.FC = () => {
               </View>
             </Card>
 
-            {/* 4. Teacher & Course Allocation Overview */}
-            <Text style={styles.sectionHeaderTitle}>👨‍🏫 Teacher Course Allocations</Text>
+            {/* 5. Teacher & Course Allocation Overview */}
+            <Text style={[styles.sectionHeaderTitle, { color: theme.colors.text }]}>
+              👨‍🏫 Teacher Course Allocations
+            </Text>
             <Card style={styles.allocationsCard}>
               {teachers.map((t) => {
                 const assigned = t.courses || [];
                 return (
-                  <View key={t.id} style={styles.teacherAllocationRow}>
+                  <View
+                    key={t.id}
+                    style={[styles.teacherAllocationRow, { borderBottomColor: theme.colors.border }]}
+                  >
                     <View style={styles.teacherAllocLeft}>
-                      <Text style={styles.teacherAllocName}>
+                      <Text style={[styles.teacherAllocName, { color: theme.colors.text }]}>
                         {t.full_name} ({t.teacher_code})
                       </Text>
-                      <Text style={styles.teacherAllocEmail}>{t.email}</Text>
+                      <Text style={[styles.teacherAllocEmail, { color: theme.colors.muted }]}>{t.email}</Text>
                     </View>
                     <View style={styles.teacherAllocCourses}>
                       {assigned.length > 0 ? (
                         assigned.map((c) => (
-                          <View key={c.id} style={styles.allocChip}>
-                            <Text style={styles.allocChipText}>
+                          <View
+                            key={c.id}
+                            style={[
+                              styles.allocChip,
+                              { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
+                            ]}
+                          >
+                            <Text style={[styles.allocChipText, { color: theme.colors.textSecondary }]}>
                               {c.course_code}: {c.course_name}
                             </Text>
                           </View>
                         ))
                       ) : (
-                        <Text style={styles.allocNone}>No courses assigned</Text>
+                        <Text style={[styles.allocNone, { color: theme.colors.warning }]}>
+                          No courses assigned
+                        </Text>
                       )}
                     </View>
                   </View>
@@ -243,36 +350,52 @@ export const AdminDashboard: React.FC = () => {
               })}
             </Card>
 
-            {/* 5. Complete Institutional Timetable Overview */}
-            <Text style={styles.sectionHeaderTitle}>🗓️ Full Institutional Timetable</Text>
+            {/* 6. Complete Institutional Timetable Overview */}
+            <Text style={[styles.sectionHeaderTitle, { color: theme.colors.text }]}>
+              🗓️ Full Institutional Timetable
+            </Text>
             <View style={styles.fullTimetableWrapper}>
               {WEEKDAYS.map((d) => {
                 const dayLessons = groupedTimetable[d] || [];
                 return (
                   <Card key={d} style={styles.dayGroupCard}>
-                    <View style={styles.dayGroupHeader}>
-                      <Text style={styles.dayGroupTitle}>{d}</Text>
-                      <Text style={styles.dayGroupBadge}>{dayLessons.length} classes</Text>
+                    <View style={[styles.dayGroupHeader, { borderBottomColor: theme.colors.border }]}>
+                      <Text style={[styles.dayGroupTitle, { color: theme.colors.primary }]}>{d}</Text>
+                      <Text style={[styles.dayGroupBadge, { color: theme.colors.muted }]}>
+                        {dayLessons.length} classes
+                      </Text>
                     </View>
 
                     {dayLessons.length > 0 ? (
                       dayLessons.map((item) => (
-                        <View key={item.id} style={styles.timetableRow}>
-                          <View style={styles.ttTimeBadge}>
-                            <Text style={styles.ttTimeText}>
+                        <View
+                          key={item.id}
+                          style={[styles.timetableRow, { borderBottomColor: theme.colors.border }]}
+                        >
+                          <View
+                            style={[
+                              styles.ttTimeBadge,
+                              { backgroundColor: theme.colors.primaryLight },
+                            ]}
+                          >
+                            <Text style={[styles.ttTimeText, { color: theme.colors.primary }]}>
                               {item.start_time} - {item.end_time}
                             </Text>
                           </View>
                           <View style={styles.ttInfoCol}>
-                            <Text style={styles.ttCourseText}>{item.course_name}</Text>
-                            <Text style={styles.ttMetaText}>
+                            <Text style={[styles.ttCourseText, { color: theme.colors.text }]}>
+                              {item.course_name}
+                            </Text>
+                            <Text style={[styles.ttMetaText, { color: theme.colors.muted }]}>
                               {item.teacher_name} • Room {item.room}
                             </Text>
                           </View>
                         </View>
                       ))
                     ) : (
-                      <Text style={styles.noLessonsDayText}>No scheduled lessons.</Text>
+                      <Text style={[styles.noLessonsDayText, { color: theme.colors.muted }]}>
+                        No scheduled lessons.
+                      </Text>
                     )}
                   </Card>
                 );
@@ -288,14 +411,13 @@ export const AdminDashboard: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   container: {
     flex: 1,
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: 16,
   },
   scrollContent: {
-    paddingTop: theme.spacing.xs,
+    paddingTop: 4,
   },
   centerContainer: {
     flex: 1,
@@ -304,20 +426,72 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    color: theme.colors.muted,
-    fontSize: theme.fontSize.sm,
+    fontSize: 14,
+  },
+  settingsCard: {
+    marginBottom: 16,
+    padding: 16,
+  },
+  settingsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  settingsTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  currentThemeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  currentThemeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  settingsDesc: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  themeButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  themeChoiceBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  themeChoiceBtnActive: {
+    elevation: 2,
+  },
+  themeChoiceText: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 6,
   },
   statsGrid: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: theme.spacing.lg,
+    marginBottom: 16,
   },
   statCard: {
     flex: 1,
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: theme.colors.border,
     paddingVertical: 12,
     alignItems: 'center',
   },
@@ -330,35 +504,30 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   statNumber: {
-    fontSize: theme.fontSize.lg,
+    fontSize: 18,
     fontWeight: '800',
-    color: theme.colors.text,
   },
   statLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: theme.colors.muted,
     marginTop: 2,
     textTransform: 'uppercase',
   },
   sectionHeaderTitle: {
-    fontSize: theme.fontSize.md,
+    fontSize: 16,
     fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: theme.spacing.sm,
-    marginTop: theme.spacing.sm,
+    marginBottom: 10,
+    marginTop: 10,
   },
   quickActionsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: theme.spacing.lg,
+    marginBottom: 16,
   },
   quickActionBtn: {
     flex: 1,
-    backgroundColor: theme.colors.white,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 6,
     alignItems: 'center',
@@ -367,14 +536,13 @@ const styles = StyleSheet.create({
   quickActionText: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.colors.text,
     marginTop: 6,
     textAlign: 'center',
   },
   conflictWatchCard: {
     backgroundColor: '#F0FDF4',
     borderColor: '#BBF7D0',
-    marginBottom: theme.spacing.lg,
+    marginBottom: 16,
   },
   conflictWatchHeader: {
     flexDirection: 'row',
@@ -386,7 +554,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   conflictWatchTitle: {
-    fontSize: theme.fontSize.md,
+    fontSize: 16,
     fontWeight: '700',
     color: '#065F46',
   },
@@ -403,7 +571,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   ruleText: {
-    fontSize: theme.fontSize.xs,
+    fontSize: 12,
     color: '#064E3B',
     marginLeft: 6,
     flex: 1,
@@ -413,49 +581,42 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   allocationsCard: {
-    marginBottom: theme.spacing.lg,
-    padding: theme.spacing.md,
+    marginBottom: 16,
+    padding: 14,
   },
   teacherAllocationRow: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
   },
   teacherAllocLeft: {
     marginBottom: 6,
   },
   teacherAllocName: {
-    fontSize: theme.fontSize.sm,
+    fontSize: 14,
     fontWeight: '700',
-    color: theme.colors.text,
   },
   teacherAllocEmail: {
     fontSize: 11,
-    color: theme.colors.muted,
   },
   teacherAllocCourses: {
     gap: 4,
   },
   allocChip: {
-    backgroundColor: theme.colors.background,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   allocChipText: {
     fontSize: 11,
-    color: theme.colors.textSecondary,
     fontWeight: '500',
   },
   allocNone: {
     fontSize: 11,
-    color: theme.colors.warning,
     fontStyle: 'italic',
   },
   fullTimetableWrapper: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: 16,
   },
   dayGroupCard: {
     marginBottom: 10,
@@ -467,27 +628,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
     paddingBottom: 4,
   },
   dayGroupTitle: {
-    fontSize: theme.fontSize.sm,
+    fontSize: 14,
     fontWeight: '700',
-    color: theme.colors.primary,
   },
   dayGroupBadge: {
     fontSize: 11,
-    color: theme.colors.muted,
   },
   timetableRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#F1F5F9',
   },
   ttTimeBadge: {
-    backgroundColor: theme.colors.primaryLight,
     paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: 4,
@@ -498,7 +654,6 @@ const styles = StyleSheet.create({
   ttTimeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: theme.colors.primary,
   },
   ttInfoCol: {
     flex: 1,
@@ -506,16 +661,13 @@ const styles = StyleSheet.create({
   ttCourseText: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.colors.text,
   },
   ttMetaText: {
     fontSize: 11,
-    color: theme.colors.muted,
     marginTop: 2,
   },
   noLessonsDayText: {
     fontSize: 11,
-    color: theme.colors.muted,
     fontStyle: 'italic',
     paddingVertical: 4,
   },

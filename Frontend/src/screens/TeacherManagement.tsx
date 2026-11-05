@@ -30,9 +30,11 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { TextInputField } from '../components/TextInputField';
 import { EmptyState } from '../components/EmptyState';
 import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 
 export const TeacherManagement: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { theme: currentTheme, isDark } = useTheme();
 
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
@@ -257,7 +259,7 @@ export const TeacherManagement: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         <ScreenHeader
           title="Teachers"
@@ -312,11 +314,14 @@ export const TeacherManagement: React.FC = () => {
               <View
                 style={[
                   styles.modalContent,
-                  { paddingBottom: Math.max(insets.bottom, 20) + 12 },
+                  {
+                    backgroundColor: currentTheme.colors.card,
+                    paddingBottom: Math.max(insets.bottom, 20) + 12,
+                  },
                 ]}
               >
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>
+                  <Text style={[styles.modalTitle, { color: currentTheme.colors.text }]}>
                     {isEditing ? 'Edit Teacher Details' : 'Register New Teacher'}
                   </Text>
                   <TouchableOpacity onPress={() => setTeacherModalVisible(false)}>
@@ -385,13 +390,16 @@ export const TeacherManagement: React.FC = () => {
               style={[
                 styles.modalContent,
                 styles.assignModalContent,
-                { paddingBottom: Math.max(insets.bottom, 20) + 12 },
+                {
+                  backgroundColor: currentTheme.colors.card,
+                  paddingBottom: Math.max(insets.bottom, 20) + 12,
+                },
               ]}
             >
               <View style={styles.modalHeader}>
                 <View>
-                  <Text style={styles.modalTitle}>Assign Exactly 2 Courses</Text>
-                  <Text style={styles.modalSub}>
+                  <Text style={[styles.modalTitle, { color: currentTheme.colors.text }]}>Assign Exactly 2 Courses</Text>
+                  <Text style={[styles.modalSub, { color: currentTheme.colors.muted }]}>
                     Teacher: {assigningTeacher?.full_name} ({assigningTeacher?.teacher_code})
                   </Text>
                 </View>

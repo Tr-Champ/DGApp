@@ -22,12 +22,14 @@ import {
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Card } from '../components/Card';
 import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 export const TeacherDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { user, lockApp, isDeviceLockSupported } = useAuth();
+  const { theme: currentTheme, isDark } = useTheme();
 
   const teacherId = user?.teacher_id || 1;
 
@@ -80,10 +82,12 @@ export const TeacherDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]}>
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Loading teacher personal portal...</Text>
+          <ActivityIndicator size="large" color={currentTheme.colors.primary} />
+          <Text style={[styles.loadingText, { color: currentTheme.colors.muted }]}>
+            Loading teacher personal portal...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -106,7 +110,7 @@ export const TeacherDashboard: React.FC = () => {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]} edges={['top', 'left', 'right']}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={[

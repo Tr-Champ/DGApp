@@ -12,14 +12,15 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { TextInputField } from '../components/TextInputField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Card } from '../components/Card';
-import { theme } from '../theme';
 
 export const LoginScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { login, isLocked, unlockWithDevice, isDeviceLockSupported, user } = useAuth();
+  const { theme, isDark, toggleTheme } = useTheme();
 
   const [activeRole, setActiveRole] = useState<'teacher' | 'admin'>('teacher');
   const [username, setUsername] = useState('john');
@@ -64,7 +65,25 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
+      {/* Theme Switcher Button in Top Right */}
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          style={[
+            styles.themeBtn,
+            { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+          ]}
+          onPress={toggleTheme}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={isDark ? 'sunny' : 'moon'}
+            size={20}
+            color={isDark ? '#F59E0B' : theme.colors.primary}
+          />
+        </TouchableOpacity>
+      </View>
+
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -80,19 +99,26 @@ export const LoginScreen: React.FC = () => {
         >
           {/* Header Branding */}
           <View style={styles.header}>
-            <View style={styles.iconCircle}>
+            <View
+              style={[
+                styles.iconCircle,
+                { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.border },
+              ]}
+            >
               <Ionicons name="school" size={44} color={theme.colors.primary} />
             </View>
-            <Text style={styles.title}>Teacher Timetable</Text>
-            <Text style={styles.titleHighlight}>Manager</Text>
-            <Text style={styles.subtitle}>ABC Training Institution • Exam 2026</Text>
+            <Text style={[styles.title, { color: theme.colors.text }]}>Teacher Timetable</Text>
+            <Text style={[styles.titleHighlight, { color: theme.colors.primary }]}>Manager</Text>
+            <Text style={[styles.subtitle, { color: theme.colors.muted }]}>
+              ABC Training Institution • Exam 2026
+            </Text>
           </View>
 
           {/* Locked State Prompt (if teacher locked the app with phone screen lock) */}
           {isLocked && (
             <Card style={styles.lockedCard}>
               <View style={styles.lockedRow}>
-                <Ionicons name="lock-closed" size={28} color={theme.colors.primary} />
+                <Ionicons name="lock-closed" size={28} color="#D97706" />
                 <View style={styles.lockedTextContainer}>
                   <Text style={styles.lockedTitle}>App is Locked</Text>
                   <Text style={styles.lockedSub}>
@@ -111,25 +137,30 @@ export const LoginScreen: React.FC = () => {
 
           {/* Error Banner */}
           {errorMsg ? (
-            <View style={styles.errorBanner}>
+            <View style={[styles.errorBanner, { backgroundColor: theme.colors.dangerLight }]}>
               <Ionicons name="alert-circle" size={20} color={theme.colors.danger} />
-              <Text style={styles.errorText}>{errorMsg}</Text>
+              <Text style={[styles.errorText, { color: theme.colors.danger }]}>{errorMsg}</Text>
             </View>
           ) : null}
 
           {/* Login Card */}
           <Card style={styles.formCard}>
-            <Text style={styles.formTitle}>
+            <Text style={[styles.formTitle, { color: theme.colors.text }]}>
               {isLocked ? 'Or Log In with Credentials' : 'Sign In to Your Account'}
             </Text>
 
             {/* Quick Role Switcher Chips */}
-            <Text style={styles.rolePickerLabel}>Select Account Type:</Text>
+            <Text style={[styles.rolePickerLabel, { color: theme.colors.muted }]}>
+              Select Account Type:
+            </Text>
             <View style={styles.roleSwitcherRow}>
               <TouchableOpacity
                 style={[
                   styles.roleChip,
-                  activeRole === 'teacher' && styles.roleChipActive,
+                  {
+                    backgroundColor: activeRole === 'teacher' ? theme.colors.primary : theme.colors.card,
+                    borderColor: activeRole === 'teacher' ? theme.colors.primary : theme.colors.border,
+                  },
                 ]}
                 onPress={() => selectRole('teacher')}
                 activeOpacity={0.8}
@@ -137,12 +168,12 @@ export const LoginScreen: React.FC = () => {
                 <Ionicons
                   name="person"
                   size={16}
-                  color={activeRole === 'teacher' ? theme.colors.white : theme.colors.primary}
+                  color={activeRole === 'teacher' ? '#FFFFFF' : theme.colors.primary}
                 />
                 <Text
                   style={[
                     styles.roleChipText,
-                    activeRole === 'teacher' && styles.roleChipTextActive,
+                    { color: activeRole === 'teacher' ? '#FFFFFF' : theme.colors.textSecondary },
                   ]}
                 >
                   Teacher (john)
@@ -152,7 +183,10 @@ export const LoginScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.roleChip,
-                  activeRole === 'admin' && styles.roleChipActiveAdmin,
+                  {
+                    backgroundColor: activeRole === 'admin' ? '#7C3AED' : theme.colors.card,
+                    borderColor: activeRole === 'admin' ? '#7C3AED' : theme.colors.border,
+                  },
                 ]}
                 onPress={() => selectRole('admin')}
                 activeOpacity={0.8}
@@ -160,12 +194,12 @@ export const LoginScreen: React.FC = () => {
                 <Ionicons
                   name="shield-checkmark"
                   size={16}
-                  color={activeRole === 'admin' ? theme.colors.white : '#7C3AED'}
+                  color={activeRole === 'admin' ? '#FFFFFF' : '#7C3AED'}
                 />
                 <Text
                   style={[
                     styles.roleChipText,
-                    activeRole === 'admin' && styles.roleChipTextActive,
+                    { color: activeRole === 'admin' ? '#FFFFFF' : theme.colors.textSecondary },
                   ]}
                 >
                   Admin (admin)
@@ -199,7 +233,7 @@ export const LoginScreen: React.FC = () => {
               title={activeRole === 'admin' ? 'Sign In as Administrator' : 'Sign In as Teacher'}
               onPress={handleLogin}
               loading={loading}
-              icon={<Ionicons name="log-in-outline" size={20} color={theme.colors.white} />}
+              icon={<Ionicons name="log-in-outline" size={20} color="#FFFFFF" />}
               style={activeRole === 'admin' ? styles.loginBtnAdmin : styles.loginBtn}
             />
 
@@ -211,21 +245,26 @@ export const LoginScreen: React.FC = () => {
                 activeOpacity={0.7}
               >
                 <Ionicons name="finger-print" size={20} color={theme.colors.primary} />
-                <Text style={styles.biometricShortcutText}>
+                <Text style={[styles.biometricShortcutText, { color: theme.colors.primary }]}>
                   Unlock with Phone Screen Lock
                 </Text>
               </TouchableOpacity>
             )}
 
             {/* Default Accounts Info Box */}
-            <View style={styles.hintBox}>
+            <View
+              style={[
+                styles.hintBox,
+                { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
+              ]}
+            >
               <Ionicons name="information-circle-outline" size={18} color={theme.colors.muted} />
               <View style={styles.hintContent}>
-                <Text style={styles.hintText}>
-                  👨‍🏫 <Text style={styles.bold}>Teacher:</Text> john / teacher123
+                <Text style={[styles.hintText, { color: theme.colors.textSecondary }]}>
+                  👨‍🏫 <Text style={[styles.bold, { color: theme.colors.text }]}>Teacher:</Text> john / teacher123
                 </Text>
-                <Text style={styles.hintText}>
-                  🛠️ <Text style={styles.bold}>Admin:</Text> admin / admin123
+                <Text style={[styles.hintText, { color: theme.colors.textSecondary }]}>
+                  🛠️ <Text style={[styles.bold, { color: theme.colors.text }]}>Admin:</Text> admin / admin123
                 </Text>
               </View>
             </View>
@@ -239,54 +278,62 @@ export const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  themeBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   keyboardContainer: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xl,
+    paddingHorizontal: 20,
+    paddingTop: 8,
     justifyContent: 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: 20,
   },
   iconCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: theme.spacing.md,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
   },
   title: {
-    fontSize: theme.fontSize.title,
+    fontSize: 26,
     fontWeight: '800',
-    color: theme.colors.text,
     letterSpacing: -0.5,
   },
   titleHighlight: {
-    fontSize: theme.fontSize.title,
+    fontSize: 26,
     fontWeight: '800',
-    color: theme.colors.primary,
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.muted,
+    fontSize: 13,
     marginTop: 6,
     fontWeight: '500',
   },
   lockedCard: {
     backgroundColor: '#FEF3C7',
     borderColor: '#FDE68A',
-    marginBottom: theme.spacing.lg,
+    marginBottom: 16,
   },
   lockedRow: {
     flexDirection: 'row',
@@ -298,12 +345,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   lockedTitle: {
-    fontSize: theme.fontSize.md,
+    fontSize: 15,
     fontWeight: '700',
     color: '#92400E',
   },
   lockedSub: {
-    fontSize: theme.fontSize.xs,
+    fontSize: 12,
     color: '#B45309',
     marginTop: 2,
   },
@@ -314,34 +361,30 @@ const styles = StyleSheet.create({
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.dangerLight,
     borderWidth: 1,
     borderColor: '#FECACA',
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
   },
   errorText: {
-    color: theme.colors.danger,
-    fontSize: theme.fontSize.sm,
+    fontSize: 13,
     fontWeight: '600',
     marginLeft: 8,
     flex: 1,
   },
   formCard: {
-    padding: theme.spacing.xl,
+    padding: 20,
   },
   formTitle: {
-    fontSize: theme.fontSize.lg,
+    fontSize: 17,
     fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: theme.spacing.md,
+    marginBottom: 14,
     textAlign: 'center',
   },
   rolePickerLabel: {
-    fontSize: theme.fontSize.xs,
+    fontSize: 11,
     fontWeight: '700',
-    color: theme.colors.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -349,7 +392,7 @@ const styles = StyleSheet.create({
   roleSwitcherRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: theme.spacing.lg,
+    marginBottom: 16,
   },
   roleChip: {
     flex: 1,
@@ -358,33 +401,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 10,
     paddingHorizontal: 8,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: theme.colors.border,
-    backgroundColor: '#F8FAFC',
-  },
-  roleChipActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  roleChipActiveAdmin: {
-    backgroundColor: '#7C3AED',
-    borderColor: '#7C3AED',
   },
   roleChipText: {
     fontSize: 12,
     fontWeight: '700',
-    color: theme.colors.textSecondary,
     marginLeft: 6,
   },
-  roleChipTextActive: {
-    color: theme.colors.white,
-  },
   loginBtn: {
-    marginTop: theme.spacing.sm,
+    marginTop: 8,
   },
   loginBtnAdmin: {
-    marginTop: theme.spacing.sm,
+    marginTop: 8,
     backgroundColor: '#7C3AED',
   },
   biometricShortcut: {
@@ -395,20 +424,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   biometricShortcutText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.primary,
+    fontSize: 13,
     fontWeight: '600',
     marginLeft: 6,
   },
   hintBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.sm,
+    borderRadius: 8,
     padding: 12,
-    marginTop: theme.spacing.lg,
+    marginTop: 16,
     borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   hintContent: {
     marginLeft: 8,
@@ -416,11 +442,9 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   hintText: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
+    fontSize: 12,
   },
   bold: {
     fontWeight: '700',
-    color: theme.colors.text,
   },
 });

@@ -3,17 +3,18 @@ import { StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../theme/ThemeContext';
 import { TeacherManagement } from '../screens/TeacherManagement';
 import { CourseManagement } from '../screens/CourseManagement';
 import { TimetableManagement } from '../screens/TimetableManagement';
 import { TeacherDashboard } from '../screens/TeacherDashboard';
 import { AdminDashboard } from '../screens/AdminDashboard';
-import { theme } from '../theme';
 
 const Tab = createBottomTabNavigator();
 
 export const TabNavigator: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { theme, isDark } = useTheme();
 
   // Ensure tabs have enough padding for phone navigation home keys / gesture navigation bar
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
@@ -26,7 +27,7 @@ export const TabNavigator: React.FC = () => {
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.muted,
         tabBarStyle: {
-          backgroundColor: theme.colors.white,
+          backgroundColor: theme.colors.card,
           borderTopColor: theme.colors.border,
           borderTopWidth: 1,
           height: tabHeight,
@@ -35,7 +36,7 @@ export const TabNavigator: React.FC = () => {
           elevation: 10,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.06,
+          shadowOpacity: isDark ? 0.3 : 0.06,
           shadowRadius: 4,
         },
         tabBarLabelStyle: {

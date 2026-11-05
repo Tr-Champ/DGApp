@@ -28,9 +28,11 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { TextInputField } from '../components/TextInputField';
 import { EmptyState } from '../components/EmptyState';
 import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 
 export const CourseManagement: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { theme: currentTheme, isDark } = useTheme();
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,7 +198,7 @@ export const CourseManagement: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         <ScreenHeader
           title="Courses"
@@ -251,11 +253,14 @@ export const CourseManagement: React.FC = () => {
               <View
                 style={[
                   styles.modalContent,
-                  { paddingBottom: Math.max(insets.bottom, 20) + 12 },
+                  {
+                    backgroundColor: currentTheme.colors.card,
+                    paddingBottom: Math.max(insets.bottom, 20) + 12,
+                  },
                 ]}
               >
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>
+                  <Text style={[styles.modalTitle, { color: currentTheme.colors.text }]}>
                     {isEditing ? 'Edit Course' : 'Register New Course'}
                   </Text>
                   <TouchableOpacity onPress={() => setModalVisible(false)}>
