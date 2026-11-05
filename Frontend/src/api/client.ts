@@ -135,6 +135,24 @@ export async function loginApi(username: string, password: string) {
   return res.data;
 }
 
+export async function registerApi(payload: {
+  username: string;
+  password: string;
+  role?: string;
+  teacher_id?: number | null;
+}) {
+  const res = await client.post('/auth/register', payload);
+  return res.data;
+}
+
+export async function resetPasswordApi(username: string, new_password: string) {
+  const res = await client.post('/auth/reset-password', {
+    username,
+    new_password,
+  });
+  return res.data;
+}
+
 // Teachers
 export async function getTeachers(): Promise<Teacher[]> {
   const res = await client.get('/teachers');

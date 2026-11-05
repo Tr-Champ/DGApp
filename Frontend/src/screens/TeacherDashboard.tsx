@@ -41,11 +41,23 @@ export const TeacherDashboard: React.FC = () => {
   // View mode: 'daily' vs 'weekly'
   const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
   const [selectedDay, setSelectedDay] = useState('Monday');
+  const hasAlertedRef = React.useRef(false);
 
   const fetchDashboard = useCallback(async () => {
     try {
       const data = await getTeacherDashboard(teacherId);
       setDashboardData(data);
+
+      // Alert teacher immediately on login/entry if there are unread timetable updates
+      const unread = (data.notifications || []).filter((n: NotificationItem) => !n.is_read);
+      if (unread.length > 0 && !hasAlertedRef.current) {
+        hasAlertedRef.current = true;
+        const latest = unread[0];
+        Alert.alert(
+          '🔔 Timetable Alert',
+          `${latest.title}\n\n${latest.message}\n\nYou have ${unread.length} timetable notification(s).`
+        );
+      }
     } catch (err: any) {
       Alert.alert('Dashboard Error', err.message || 'Could not load teacher dashboard.');
     } finally {

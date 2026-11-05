@@ -16,7 +16,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
-import { theme as defaultTheme } from '../theme';
 import {
   getTimetable,
   createTimetableEntry,
@@ -31,7 +30,6 @@ import {
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Card } from '../components/Card';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { TextInputField } from '../components/TextInputField';
 import { EmptyState } from '../components/EmptyState';
 
 const DAYS = ['All', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -59,6 +57,10 @@ export const TimetableManagement: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [activeDayFilter, setActiveDayFilter] = useState('All');
 
+  // Admin View Mode: 'institution' (all) or 'teacher' (per-teacher weekly schedule)
+  const [adminViewMode, setAdminViewMode] = useState<'institution' | 'teacher'>('institution');
+  const [selectedTeacherFilterId, setSelectedTeacherFilterId] = useState<number | null>(null);
+
   // Modal State for Admin Add/Edit
   const [modalVisible, setModalVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -72,8 +74,8 @@ export const TimetableManagement: React.FC = () => {
   const [selectedTeacherId, setSelectedTeacherId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Dropdown Picker sheet states
-  const [pickerModalType, setPickerModalType] = useState<'teacher' | 'course' | 'day' | 'time' | 'room' | null>(null);
+  // Small inline dropdown states (no popup modals!)
+  const [openDropdown, setOpenDropdown] = useState<'teacher' | 'course' | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -85,13 +87,18 @@ export const TimetableManagement: React.FC = () => {
       setTimetable(ttRes);
       setCourses(coursesRes);
       setTeachers(teachersRes);
+
+      // Default selected teacher filter to first teacher
+      if (teachersRes.length > 0 && selectedTeacherFilterId === null) {
+        setSelectedTeacherFilterId(teachersRes[0].id);
+      }
     } catch (err: any) {
       Alert.alert('Load Error', err.message || 'Could not load timetable data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [selectedTeacherFilterId]);
 
   useEffect(() => {
     fetchData();
@@ -102,42 +109,59 @@ export const TimetableManagement: React.FC = () => {
     fetchData();
   };
 
-  // TEACHER ISOLATION: Teachers ONLY see their own lessons
-  const visibleTimetable = !isAdmin && currentTeacherId
-    ? timetable.filter((t) => t.teacher_id === currentTeacherId)
-    : timetable;
+  // Determine which lessons to show:
+  // 1. If Teacher role: strictly isolated to currentTeacherId
+  // 2. If Admin role:
+  //    - In 'teacher' mode: filter by selectedTeacherFilterId
+  //    - In 'institution' mode: show all
+  let baseTimetable: TimetableEntry[] = timetable;
+  if (!isAdmin && currentTeacherId) {
+    baseTimetable = timetable.filter((t) => t.teacher_id === currentTeacherId);
+  } else if (isAdmin && adminViewMode === 'teacher' && selectedTeacherFilterId) {
+    baseTimetable = timetable.filter((t) => t.teacher_id === selectedTeacherFilterId);
+  }
 
   // Filter by active day chip
-  const filteredTimetable = activeDayFilter === 'All'
-    ? visibleTimetable
-    : visibleTimetable.filter((t) => t.day.toLowerCase() === activeDayFilter.toLowerCase());
+  const visibleTimetable = activeDayFilter === 'All'
+    ? baseTimetable
+    : baseTimetable.filter((t) => t.day.toLowerCase() === activeDayFilter.toLowerCase());
 
   // Group lessons by day (Monday -> Friday)
   const groupedByDay: { [key: string]: TimetableEntry[] } = {};
   const daysToDisplay = activeDayFilter === 'All' ? WEEKDAYS : [activeDayFilter];
   daysToDisplay.forEach((d) => {
-    groupedByDay[d] = visibleTimetable.filter((t) => t.day.toLowerCase() === d.toLowerCase());
+    groupedByDay[d] = baseTimetable.filter((t) => t.day.toLowerCase() === d.toLowerCase());
   });
 
   const openCreateModal = () => {
     setIsEditing(false);
     setSelectedEntryId(null);
+    setOpenDropdown(null);
     setDay(activeDayFilter === 'All' ? 'Monday' : activeDayFilter);
     setStartTime('08:00');
     setEndTime('10:00');
     setRoom('R101');
 
-    if (courses.length > 0) {
-      const firstCourse = courses[0];
-      setSelectedCourseId(firstCourse.id);
-      setSelectedTeacherId(firstCourse.assigned_teacher?.id || firstCourse.teacher_id || (teachers[0]?.id || 1));
+    // Preselect teacher if admin is currently viewing a specific teacher
+    const defaultTeacherId = (adminViewMode === 'teacher' && selectedTeacherFilterId)
+      ? selectedTeacherFilterId
+      : (teachers[0]?.id || 1);
+    setSelectedTeacherId(defaultTeacherId);
+
+    const teacherObj = teachers.find((t) => t.id === defaultTeacherId);
+    if (teacherObj?.courses && teacherObj.courses.length > 0) {
+      setSelectedCourseId(teacherObj.courses[0].id);
+    } else if (courses.length > 0) {
+      setSelectedCourseId(courses[0].id);
     }
+
     setModalVisible(true);
   };
 
   const openEditModal = (entry: TimetableEntry) => {
     setIsEditing(true);
     setSelectedEntryId(entry.id);
+    setOpenDropdown(null);
     setDay(entry.day);
     setStartTime(entry.start_time);
     setEndTime(entry.end_time);
@@ -149,7 +173,6 @@ export const TimetableManagement: React.FC = () => {
 
   const handleSelectCourse = (course: Course) => {
     setSelectedCourseId(course.id);
-    // Auto-fill teacher assigned to this course to reduce admin effort
     const teacherId = course.assigned_teacher?.id || course.teacher_id;
     if (teacherId) {
       setSelectedTeacherId(teacherId);
@@ -158,7 +181,6 @@ export const TimetableManagement: React.FC = () => {
 
   const handleSelectTeacher = (teacher: Teacher) => {
     setSelectedTeacherId(teacher.id);
-    // If teacher has assigned courses, pre-select their first course
     if (teacher.courses && teacher.courses.length > 0) {
       setSelectedCourseId(teacher.courses[0].id);
     }
@@ -193,10 +215,15 @@ export const TimetableManagement: React.FC = () => {
         });
         Alert.alert('Success', 'Lesson scheduled successfully.');
       }
+
+      // Automatically switch admin view to this teacher so they see the result immediately
+      if (isAdmin && selectedTeacherId) {
+        setSelectedTeacherFilterId(selectedTeacherId);
+      }
+
       setModalVisible(false);
       fetchData();
     } catch (err: any) {
-      // PROMPT REQUIREMENT: Show exact DB trigger conflict error in red alert!
       Alert.alert('Scheduling Conflict', err.message);
     } finally {
       setSubmitting(false);
@@ -227,22 +254,119 @@ export const TimetableManagement: React.FC = () => {
 
   const selectedTeacherObj = teachers.find((t) => t.id === selectedTeacherId);
   const selectedCourseObj = courses.find((c) => c.id === selectedCourseId);
+  const currentFilteredTeacher = teachers.find((t) => t.id === selectedTeacherFilterId);
+
+  // Dynamic Header Title
+  const headerTitle = !isAdmin
+    ? 'My Weekly Timetable'
+    : adminViewMode === 'teacher'
+    ? `${currentFilteredTeacher?.full_name || 'Teacher'}'s Schedule`
+    : 'Institutional Timetable';
+
+  const headerSubtitle = !isAdmin
+    ? `${user?.teacher_name || user?.username} (Isolated View)`
+    : adminViewMode === 'teacher'
+    ? `Weekly timetable for ${currentFilteredTeacher?.full_name || 'Staff'}`
+    : 'Institutional schedule & conflict guard';
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         <ScreenHeader
-          title="Weekly Timetable"
-          subtitle={
-            !isAdmin && currentTeacherId
-              ? `Personal schedule for ${user?.teacher_name || user?.username} (Isolated)`
-              : 'Institutional schedule & conflict guard'
+          title={headerTitle}
+          subtitle={headerSubtitle}
+          badge={
+            !isAdmin
+              ? 'My Classes'
+              : adminViewMode === 'teacher'
+              ? (currentFilteredTeacher?.teacher_code || 'Staff')
+              : `${timetable.length} Lessons`
           }
-          badge={!isAdmin ? 'My Classes' : `${timetable.length} Lessons`}
           rightActionTitle={isAdmin ? 'Add Lesson' : undefined}
           rightIcon={isAdmin ? <Ionicons name="add" size={18} color="#FFFFFF" /> : undefined}
           onRightAction={isAdmin ? openCreateModal : undefined}
         />
+
+        {/* ============================================================= */}
+        {/* ADMIN TIMETABLE MODE SWITCHER BUTTON */}
+        {/* "that text says Weekly Timetable replace it with button that admin will click */}
+        {/* and it allow him to view the each teacher weekly timetable" */}
+        {/* ============================================================= */}
+        {isAdmin && (
+          <View style={styles.adminToggleWrapper}>
+            <TouchableOpacity
+              style={[
+                styles.modeToggleButton,
+                {
+                  backgroundColor: adminViewMode === 'teacher' ? theme.colors.primary : theme.colors.card,
+                  borderColor: adminViewMode === 'teacher' ? theme.colors.primary : theme.colors.border,
+                },
+              ]}
+              onPress={() => {
+                setAdminViewMode(adminViewMode === 'teacher' ? 'institution' : 'teacher');
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name={adminViewMode === 'teacher' ? 'grid-outline' : 'person-outline'}
+                size={16}
+                color={adminViewMode === 'teacher' ? '#FFFFFF' : theme.colors.primary}
+              />
+              <Text
+                style={[
+                  styles.modeToggleText,
+                  { color: adminViewMode === 'teacher' ? '#FFFFFF' : theme.colors.text },
+                ]}
+              >
+                {adminViewMode === 'teacher'
+                  ? 'Switch to: All Institutional Timetable'
+                  : 'Click to: View Each Teacher Weekly Timetable'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* If in Teacher mode, show teacher selector bar on top */}
+            {adminViewMode === 'teacher' && (
+              <View style={styles.teacherFilterBar}>
+                <Text style={[styles.teacherFilterLabel, { color: theme.colors.muted }]}>
+                  Select Teacher to View Schedule:
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teacherChipsScroll}>
+                  {teachers.map((t) => {
+                    const isSelected = selectedTeacherFilterId === t.id;
+                    return (
+                      <TouchableOpacity
+                        key={t.id}
+                        style={[
+                          styles.teacherNavChip,
+                          {
+                            backgroundColor: isSelected ? theme.colors.primary : theme.colors.card,
+                            borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                          },
+                        ]}
+                        onPress={() => setSelectedTeacherFilterId(t.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name="person"
+                          size={13}
+                          color={isSelected ? '#FFFFFF' : theme.colors.primary}
+                        />
+                        <Text
+                          style={[
+                            styles.teacherNavChipText,
+                            { color: isSelected ? '#FFFFFF' : theme.colors.textSecondary },
+                          ]}
+                        >
+                          {t.full_name} ({t.teacher_code})
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Day Filter Chips [All] [Mon] [Tue] [Wed] [Thu] [Fri] */}
         <View style={styles.filterWrapper}>
@@ -365,7 +489,7 @@ export const TimetableManagement: React.FC = () => {
                             </Text>
                           </View>
 
-                          {/* Admin Edit/Delete Controls */}
+                          {/* Admin Edit/Delete Controls (STRICTLY HIDDEN FROM TEACHERS) */}
                           {isAdmin && (
                             <View style={styles.adminControlsRow}>
                               <TouchableOpacity
@@ -414,6 +538,8 @@ export const TimetableManagement: React.FC = () => {
                 description={
                   !isAdmin
                     ? 'No timetable lessons scheduled for your account yet.'
+                    : adminViewMode === 'teacher'
+                    ? `No lessons scheduled for ${currentFilteredTeacher?.full_name || 'this teacher'}.`
                     : 'The institutional timetable is empty. Tap Add Lesson to begin.'
                 }
                 actionTitle={isAdmin ? 'Add Lesson' : undefined}
@@ -424,7 +550,7 @@ export const TimetableManagement: React.FC = () => {
         )}
 
         {/* ============================================================= */}
-        {/* ADMIN ADD / EDIT TIMETABLE MODAL WITH DROPDOWNS */}
+        {/* ADMIN ADD / EDIT TIMETABLE MODAL (WITH SMALL INLINE DROPDOWNS) */}
         {/* ============================================================= */}
         <Modal
           visible={modalVisible}
@@ -456,55 +582,131 @@ export const TimetableManagement: React.FC = () => {
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                  {/* 1. Teacher Dropdown Picker */}
+                  {/* 1. Teacher Small Inline Dropdown */}
                   <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
-                    1. Teacher (Dropdown)
+                    Teacher
                   </Text>
                   <TouchableOpacity
                     style={[
                       styles.dropdownTrigger,
                       { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
                     ]}
-                    onPress={() => setPickerModalType('teacher')}
+                    onPress={() => setOpenDropdown(openDropdown === 'teacher' ? null : 'teacher')}
                     activeOpacity={0.8}
                   >
                     <View style={styles.dropdownTriggerLeft}>
-                      <Ionicons name="person-circle-outline" size={20} color={theme.colors.primary} />
+                      <Ionicons name="person-circle-outline" size={18} color={theme.colors.primary} />
                       <Text style={[styles.dropdownTriggerText, { color: theme.colors.text }]}>
                         {selectedTeacherObj
                           ? `${selectedTeacherObj.full_name} (${selectedTeacherObj.teacher_code})`
                           : 'Select Teacher...'}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-down" size={18} color={theme.colors.muted} />
+                    <Ionicons
+                      name={openDropdown === 'teacher' ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color={theme.colors.muted}
+                    />
                   </TouchableOpacity>
 
-                  {/* 2. Course Dropdown Picker */}
-                  <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
-                    2. Course (Dropdown)
+                  {/* Small inline dropdown list under the dropdown */}
+                  {openDropdown === 'teacher' && (
+                    <View
+                      style={[
+                        styles.inlineDropdownList,
+                        { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
+                      ]}
+                    >
+                      {teachers.map((t) => {
+                        const isSel = selectedTeacherId === t.id;
+                        return (
+                          <TouchableOpacity
+                            key={t.id}
+                            style={[
+                              styles.inlineOptionItem,
+                              isSel && { backgroundColor: theme.colors.primaryLight },
+                            ]}
+                            onPress={() => {
+                              handleSelectTeacher(t);
+                              setOpenDropdown(null);
+                            }}
+                          >
+                            <Text style={[styles.inlineOptionText, { color: theme.colors.text }]}>
+                              👨‍🏫 {t.full_name} ({t.teacher_code})
+                            </Text>
+                            {isSel && (
+                              <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* 2. Course Small Inline Dropdown */}
+                  <Text style={[styles.fieldLabel, { color: theme.colors.text, marginTop: 12 }]}>
+                    Course
                   </Text>
                   <TouchableOpacity
                     style={[
                       styles.dropdownTrigger,
                       { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
                     ]}
-                    onPress={() => setPickerModalType('course')}
+                    onPress={() => setOpenDropdown(openDropdown === 'course' ? null : 'course')}
                     activeOpacity={0.8}
                   >
                     <View style={styles.dropdownTriggerLeft}>
-                      <Ionicons name="book-outline" size={20} color={theme.colors.primary} />
+                      <Ionicons name="book-outline" size={18} color={theme.colors.primary} />
                       <Text style={[styles.dropdownTriggerText, { color: theme.colors.text }]}>
                         {selectedCourseObj
                           ? `${selectedCourseObj.course_code}: ${selectedCourseObj.course_name}`
                           : 'Select Course...'}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-down" size={18} color={theme.colors.muted} />
+                    <Ionicons
+                      name={openDropdown === 'course' ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color={theme.colors.muted}
+                    />
                   </TouchableOpacity>
 
-                  {/* 3. Day Dropdown Picker */}
-                  <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
-                    3. Day of Week
+                  {/* Small inline dropdown list under the dropdown */}
+                  {openDropdown === 'course' && (
+                    <View
+                      style={[
+                        styles.inlineDropdownList,
+                        { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
+                      ]}
+                    >
+                      {courses.map((c) => {
+                        const isSel = selectedCourseId === c.id;
+                        return (
+                          <TouchableOpacity
+                            key={c.id}
+                            style={[
+                              styles.inlineOptionItem,
+                              isSel && { backgroundColor: theme.colors.primaryLight },
+                            ]}
+                            onPress={() => {
+                              handleSelectCourse(c);
+                              setOpenDropdown(null);
+                            }}
+                          >
+                            <Text style={[styles.inlineOptionText, { color: theme.colors.text }]}>
+                              📖 {c.course_code}: {c.course_name}
+                            </Text>
+                            {isSel && (
+                              <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* 3. Day of Week Selector */}
+                  <Text style={[styles.fieldLabel, { color: theme.colors.text, marginTop: 12 }]}>
+                    Day of Week
                   </Text>
                   <View style={styles.dayChipSelectorRow}>
                     {WEEKDAYS.map((w) => {
@@ -535,8 +737,8 @@ export const TimetableManagement: React.FC = () => {
                   </View>
 
                   {/* 4. Time Slots Quick Selector */}
-                  <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
-                    4. Time Slot
+                  <Text style={[styles.fieldLabel, { color: theme.colors.text, marginTop: 12 }]}>
+                    Time Slot
                   </Text>
                   <View style={styles.timeSlotsGrid}>
                     {PRESET_TIMES.map((slot) => {
@@ -570,8 +772,8 @@ export const TimetableManagement: React.FC = () => {
                   </View>
 
                   {/* 5. Classroom Quick Selector */}
-                  <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
-                    5. Classroom / Room
+                  <Text style={[styles.fieldLabel, { color: theme.colors.text, marginTop: 12 }]}>
+                    Classroom
                   </Text>
                   <View style={styles.roomsGrid}>
                     {PRESET_ROOMS.map((r) => {
@@ -613,7 +815,7 @@ export const TimetableManagement: React.FC = () => {
                   >
                     <Ionicons name="shield-checkmark" size={16} color={theme.colors.info} />
                     <Text style={[styles.conflictNoticeText, { color: theme.colors.info }]}>
-                      Overlapping teacher or room bookings are actively blocked by PostgreSQL triggers.
+                      Overlapping teacher or room bookings are blocked by PostgreSQL triggers.
                     </Text>
                   </View>
 
@@ -636,119 +838,6 @@ export const TimetableManagement: React.FC = () => {
             </KeyboardAvoidingView>
           </View>
         </Modal>
-
-        {/* ============================================================= */}
-        {/* DROPDOWN PICKER BOTTOM SHEET MODAL (TEACHER OR COURSE) */}
-        {/* ============================================================= */}
-        <Modal
-          visible={pickerModalType !== null}
-          animationType="fade"
-          transparent
-          onRequestClose={() => setPickerModalType(null)}
-        >
-          <View style={styles.pickerOverlay}>
-            <View
-              style={[
-                styles.pickerSheet,
-                {
-                  backgroundColor: theme.colors.card,
-                  paddingBottom: Math.max(insets.bottom, 20) + 12,
-                },
-              ]}
-            >
-              <View style={styles.pickerHeader}>
-                <Text style={[styles.pickerTitle, { color: theme.colors.text }]}>
-                  {pickerModalType === 'teacher' ? 'Select Teacher' : 'Select Course'}
-                </Text>
-                <TouchableOpacity onPress={() => setPickerModalType(null)}>
-                  <Ionicons name="close" size={24} color={theme.colors.muted} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView style={styles.pickerList}>
-                {pickerModalType === 'teacher' &&
-                  teachers.map((t) => {
-                    const isSelected = selectedTeacherId === t.id;
-                    return (
-                      <TouchableOpacity
-                        key={t.id}
-                        style={[
-                          styles.pickerItem,
-                          {
-                            backgroundColor: isSelected ? theme.colors.primaryLight : theme.colors.background,
-                            borderColor: isSelected ? theme.colors.primary : theme.colors.border,
-                          },
-                        ]}
-                        onPress={() => {
-                          handleSelectTeacher(t);
-                          setPickerModalType(null);
-                        }}
-                      >
-                        <Ionicons
-                          name="person"
-                          size={18}
-                          color={isSelected ? theme.colors.primary : theme.colors.muted}
-                        />
-                        <View style={styles.pickerItemTextCol}>
-                          <Text style={[styles.pickerItemMain, { color: theme.colors.text }]}>
-                            {t.full_name} ({t.teacher_code})
-                          </Text>
-                          <Text style={[styles.pickerItemSub, { color: theme.colors.muted }]}>
-                            {t.courses && t.courses.length > 0
-                              ? `Assigned: ${t.courses.map((c) => c.course_code).join(', ')}`
-                              : 'No courses allocated'}
-                          </Text>
-                        </View>
-                        {isSelected && (
-                          <Ionicons name="checkmark-circle" size={20} color={theme.colors.primary} />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-
-                {pickerModalType === 'course' &&
-                  courses.map((c) => {
-                    const isSelected = selectedCourseId === c.id;
-                    return (
-                      <TouchableOpacity
-                        key={c.id}
-                        style={[
-                          styles.pickerItem,
-                          {
-                            backgroundColor: isSelected ? theme.colors.primaryLight : theme.colors.background,
-                            borderColor: isSelected ? theme.colors.primary : theme.colors.border,
-                          },
-                        ]}
-                        onPress={() => {
-                          handleSelectCourse(c);
-                          setPickerModalType(null);
-                        }}
-                      >
-                        <Ionicons
-                          name="book"
-                          size={18}
-                          color={isSelected ? theme.colors.primary : theme.colors.muted}
-                        />
-                        <View style={styles.pickerItemTextCol}>
-                          <Text style={[styles.pickerItemMain, { color: theme.colors.text }]}>
-                            {c.course_code}: {c.course_name}
-                          </Text>
-                          <Text style={[styles.pickerItemSub, { color: theme.colors.muted }]}>
-                            {c.assigned_teacher
-                              ? `Teacher: ${c.assigned_teacher.full_name}`
-                              : 'Unassigned'}
-                          </Text>
-                        </View>
-                        {isSelected && (
-                          <Ionicons name="checkmark-circle" size={20} color={theme.colors.primary} />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -761,6 +850,50 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  adminToggleWrapper: {
+    marginBottom: 12,
+  },
+  modeToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  modeToggleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  teacherFilterBar: {
+    marginTop: 10,
+  },
+  teacherFilterLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  teacherChipsScroll: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  teacherNavChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  teacherNavChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 6,
   },
   filterWrapper: {
     marginBottom: 12,
@@ -849,9 +982,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 8,
-    borderTopWidth: 0.5,
-    borderTopColor: 'rgba(150, 150, 150, 0.2)',
   },
   teacherRow: {
     flexDirection: 'row',
@@ -868,32 +998,36 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   adminIconBtn: {
-    padding: 6,
-    borderRadius: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
   },
   deleteIconBtn: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#FECACA',
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
   },
   noClassBox: {
-    padding: 14,
+    padding: 16,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   noClassText: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '500',
     fontStyle: 'italic',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalKeyboardAvoid: {
-    width: '100%',
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   modalContent: {
     borderTopLeftRadius: 24,
@@ -915,7 +1049,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     marginBottom: 6,
-    marginTop: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -923,11 +1056,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1.2,
-    borderRadius: 10,
     paddingHorizontal: 12,
-    height: 48,
-    marginBottom: 4,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   dropdownTriggerLeft: {
     flexDirection: 'row',
@@ -935,19 +1067,40 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dropdownTriggerText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     marginLeft: 8,
+    flex: 1,
+  },
+  inlineDropdownList: {
+    borderWidth: 1,
+    borderRadius: 10,
+    marginTop: 4,
+    overflow: 'hidden',
+    maxHeight: 180,
+  },
+  inlineOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E2E8F0',
+  },
+  inlineOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
   },
   dayChipSelectorRow: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 4,
   },
   dayMiniChip: {
     flex: 1,
-    paddingVertical: 9,
     alignItems: 'center',
+    paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
   },
@@ -959,32 +1112,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 4,
   },
   timeSlotChip: {
-    paddingHorizontal: 12,
+    width: '48%',
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
+    alignItems: 'center',
   },
   timeSlotText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   roomsGrid: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 14,
   },
   roomChip: {
     flex: 1,
     paddingVertical: 8,
-    alignItems: 'center',
     borderRadius: 8,
     borderWidth: 1,
+    alignItems: 'center',
   },
   roomChipText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   conflictNoticeBox: {
@@ -993,64 +1145,20 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    marginBottom: 16,
+    marginTop: 16,
   },
   conflictNoticeText: {
     fontSize: 11,
-    fontWeight: '500',
-    marginLeft: 8,
+    fontWeight: '600',
+    marginLeft: 6,
     flex: 1,
   },
   modalButtonsRow: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 4,
+    marginTop: 20,
   },
   halfBtn: {
     flex: 1,
-  },
-  pickerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'flex-end',
-  },
-  pickerSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    maxHeight: '65%',
-  },
-  pickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  pickerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  pickerList: {
-    maxHeight: 320,
-  },
-  pickerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  pickerItemTextCol: {
-    marginLeft: 10,
-    flex: 1,
-  },
-  pickerItemMain: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  pickerItemSub: {
-    fontSize: 12,
-    marginTop: 2,
   },
 });

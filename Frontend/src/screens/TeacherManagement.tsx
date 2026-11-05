@@ -186,9 +186,12 @@ export const TeacherManagement: React.FC = () => {
     }
   };
 
+  const sortedTeachers = [...teachers].sort((a, b) => b.id - a.id);
   const visibleTeachers = !isAdmin && currentTeacherId
-    ? teachers.filter((t) => t.id === currentTeacherId)
-    : teachers;
+    ? sortedTeachers.filter((t) => t.id === currentTeacherId)
+    : sortedTeachers;
+
+  const teacherEmail = visibleTeachers[0]?.email || (user?.username ? `${user.username}@abc.edu` : 'Staff');
 
   const renderTeacherCard = ({ item }: { item: Teacher }) => {
     const assignedCourses = item.courses || [];
@@ -243,18 +246,18 @@ export const TeacherManagement: React.FC = () => {
           )}
         </View>
 
-        {/* Actions Row */}
-        <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={styles.actionBtnOutline}
-            onPress={() => openEditModal(item)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="create-outline" size={16} color={theme.colors.primary} />
-            <Text style={styles.actionBtnOutlineText}>Edit</Text>
-          </TouchableOpacity>
+        {/* Actions Row (Admin Only) */}
+        {isAdmin && (
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={styles.actionBtnOutline}
+              onPress={() => openEditModal(item)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="create-outline" size={16} color={theme.colors.primary} />
+              <Text style={styles.actionBtnOutlineText}>Edit</Text>
+            </TouchableOpacity>
 
-          {isAdmin && (
             <TouchableOpacity
               style={styles.actionBtnPrimary}
               onPress={() => openAssignModal(item)}
@@ -263,8 +266,8 @@ export const TeacherManagement: React.FC = () => {
               <Ionicons name="link-outline" size={16} color={theme.colors.white} />
               <Text style={styles.actionBtnPrimaryText}>Assign Courses</Text>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
       </Card>
     );
   };
@@ -273,7 +276,7 @@ export const TeacherManagement: React.FC = () => {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         <ScreenHeader
-          title={!isAdmin ? "My Teacher Profile" : "Teachers"}
+          title={!isAdmin ? `${teacherEmail} Profile` : "Teachers"}
           subtitle={!isAdmin ? "Personal staff profile & allocation (Isolated)" : "Registered staff & course allocations"}
           badge={!isAdmin ? (visibleTeachers[0]?.teacher_code || 'Staff') : `${teachers.length} Registered`}
           rightActionTitle={isAdmin ? "Register" : undefined}

@@ -145,9 +145,10 @@ export const CourseManagement: React.FC = () => {
     );
   };
 
+  const sortedCourses = [...courses].sort((a, b) => b.id - a.id);
   const visibleCourses = !isAdmin && currentTeacherId
-    ? courses.filter((c) => c.assigned_teacher?.id === currentTeacherId || c.teacher_id === currentTeacherId)
-    : courses;
+    ? sortedCourses.filter((c) => c.assigned_teacher?.id === currentTeacherId || c.teacher_id === currentTeacherId)
+    : sortedCourses;
 
   const renderCourseCard = ({ item }: { item: Course }) => {
     const hasTeacher = !!item.assigned_teacher;

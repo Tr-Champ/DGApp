@@ -12,7 +12,7 @@ def _clean_db_error(e: Exception) -> str:
 
 
 def list_courses(db: Session) -> List[CourseWithTeacher]:
-    courses = db.query(Course).order_by(Course.id.asc()).all()
+    courses = db.query(Course).order_by(Course.id.desc()).all()
     result = []
     for c in courses:
         # Teacher is either from c.teacher_id or from teacher_courses

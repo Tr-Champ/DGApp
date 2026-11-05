@@ -28,7 +28,7 @@ def _clean_db_error(e: Exception) -> str:
 
 
 def list_teachers(db: Session) -> List[TeacherWithCourses]:
-    teachers = db.query(Teacher).order_by(Teacher.id.asc()).all()
+    teachers = db.query(Teacher).order_by(Teacher.id.desc()).all()
     result = []
     for t in teachers:
         # Load courses for teacher through teacher_courses relationship

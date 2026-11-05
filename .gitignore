@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+.env
+Frontend/node_modules/
+Frontend/.expo/
+Frontend/dist/
+*.docx

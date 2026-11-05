@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loginApi, AUTH_STORAGE_KEY, DEVICE_LOCK_KEY, UserSession } from '../api/client';
+import { loginApi, registerApi, AUTH_STORAGE_KEY, DEVICE_LOCK_KEY, UserSession } from '../api/client';
 import { checkDeviceSecurity, authenticateWithDeviceLock } from './deviceAuth';
 
 interface AuthContextType {
@@ -10,6 +10,7 @@ interface AuthContextType {
   isLocked: boolean;
   isDeviceLockSupported: boolean;
   login: (username: string, password: string) => Promise<void>;
+  register: (payload: { username: string; password: string; role?: string; teacher_id?: number | null }) => Promise<void>;
   logout: () => Promise<void>;
   unlockWithDevice: () => Promise<boolean>;
   lockApp: () => void;
@@ -76,6 +77,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  const register = async (payload: { username: string; password: string; role?: string; teacher_id?: number | null }) => {
+    const data = await registerApi(payload);
+    const sessionUser: UserSession = {
+      user_id: data.user_id,
+      username: data.username,
+      role: data.role,
+      teacher_id: data.teacher_id,
+      teacher_name: data.teacher_name,
+    };
+    const sessionToken: string = data.access_token;
+
+    setToken(sessionToken);
+    setUser(sessionUser);
+    setIsLocked(false);
+
+    await AsyncStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify({ token: sessionToken, user: sessionUser })
+    );
+  };
+
   const logout = async () => {
     setUser(null);
     setToken(null);
@@ -107,6 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLocked,
         isDeviceLockSupported,
         login,
+        register,
         logout,
         unlockWithDevice,
         lockApp,
