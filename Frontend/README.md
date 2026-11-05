@@ -1,65 +1,41 @@
-# DG Retail App — Frontend Client
-**Production-Ready React Native & Expo Router Mobile Application**
+# Teacher Timetable Manager (Mobile)
 
-For the complete technical, architectural, and operational documentation, see:
-👉 **[DG_APP_TECHNICAL_DOCUMENTATION.md](../DG_APP_TECHNICAL_DOCUMENTATION.md)**
+## 1. Backend is already deployed
+Your FastAPI backend is running on Render, e.g.:
+    https://ttm-api.onrender.com
+Open it in a browser → you should see `{"status":"ok"}`.
+Swagger UI: `https://ttm-api.onrender.com/docs`
 
----
+## 2. Configure the app (ONLY ONE LINE)
+Open `src/config.ts` and replace:
 
-## Quick Start
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Start the Expo development server:
-   ```bash
-   npx expo start
-   ```
-3. Type-check the project:
-   ```bash
-   npx tsc --noEmit
-   ```
+    export const API_BASE_URL = "https://REPLACE-WITH-RENDER-URL.onrender.com";
 
+with your Render URL (no trailing slash):
 
-## Testing authentication and API access
+    export const API_BASE_URL = "https://ttm-api.onrender.com";
 
-The app uses the deployed API (`https://dgapp.onrender.com/api`) in development and production by default, so you do not need to run the backend locally. Your phone or emulator must have internet access. The first request can take longer if the hosted API is waking up.
+Save the file.
 
-To use a different API, set `EXPO_PUBLIC_API_URL` before starting Expo. For example, in PowerShell:
+*(For local testing on phone via Wi-Fi, you can also use your computer's local IP, e.g., `http://192.168.1.100:8000`).*
 
-```powershell
-$env:EXPO_PUBLIC_API_URL = "https://your-api.example.com/api"
+## 3. Run the app
+```bash
 npx expo start
 ```
+Scan the QR code with Expo Go (Android) or Camera (iOS).
+Log in with:
+    username: john
+    password: teacher123
 
-Use a publicly reachable HTTPS URL for a packaged app. `EXPO_PUBLIC_` values are embedded in the client app and must not contain secrets. Expo's development server is still needed to load the app during local testing; no local backend server is needed.
+## 4. Verify every exam feature
+- **Tab 1: Teacher Management** → See 5 registered teachers, each with their 2 assigned courses. Register a new teacher, edit details, or re-assign 2 courses using the modal picker (strictly max 2).
+- **Tab 2: Course Management** → 10 courses with assigned teachers. Register and edit courses.
+- **Tab 3: Timetable** → Weekly grid grouped by day with day filter chips (`All`, `Mon`, `Tue`, `Wed`, `Thu`, `Fri`). Tap "Add Lesson" and try adding a lesson that clashes (same teacher or same room at overlapping time) → you will see the exact red **"Scheduling Conflict"** alert returned directly from the PostgreSQL database trigger!
+- **Tab 4: Teacher Dashboard** → John's 2 courses, daily view (chips for Mon–Fri), weekly view, and notifications (auto-created on timetable changes). Tapping a notification marks it read. Plus phone screen lock feature!
+- **Tab 5: Admin Dashboard** → Totals (5 teachers / 10 courses / 10 lessons / N notifications), quick-action buttons jumping directly to tabs, full timetable overview, and the Conflict Watch panel proving database trigger enforcement.
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 5. Troubleshooting
+- If the app says **"Cannot reach backend"**: your phone must reach the Render URL. Test the URL in your phone's browser first. Ensure CORS is open on backend (it is: `allow_origins=["*"]`).
+- If Render is sleeping (free tier): the first request takes ~30 seconds for cold start. Pull-to-refresh after 30 seconds.
+- Biometric & Screen Lock: Teachers can lock and unlock the app using their phone's native fingerprint, Face ID, or PIN/Pattern lock.

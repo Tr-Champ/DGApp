@@ -1,57 +1,19 @@
 {
   "expo": {
-    "name": "E-Market",
-    "slug": "e-market",
+    "name": "Teacher Timetable Manager",
+    "slug": "teacher-timetable-manager",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/DGLoGo.jpg",
-    "scheme": "e-market",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/DGLoGo.jpg",
-      "bundleIdentifier": "com.dgretail.app",
       "supportsTablet": true
     },
     "android": {
-      "package": "com.dgretail.app",
-      "softwareKeyboardLayoutMode": "resize",
-      "adaptiveIcon": {
-        "backgroundColor": "#4F46E5",
-        "foregroundImage": "./assets/DGLoGo.jpg",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/DGLoGo.jpg"
-      },
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "output": "server",
-      "favicon": "./assets/DGLoGo.jpg"
+      "package": "com.urce.ttm",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#0F172A",
-          "image": "./assets/DGLoGo.jpg",
-          "imageWidth": 160
-        }
-      ],
-      "expo-secure-store"
-    ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    },
-    "extra": {
-      "router": {
-        "asyncRoutes": {
-          "web": true
-        }
-      },
-      "eas": {
-        "projectId": "1d7ed467-e7c2-4428-80b6-1ea987e25223"
-      }
-    }
+      "expo-local-authentication"
+    ]
   }
 }
